@@ -88,7 +88,7 @@ export default function Welcome() {
                             </Button>
                         ) : (
                             <>
-                                <Button variant="ghost" asChild>
+                                <Button asChild>
                                     <Link href={login()}>Log in</Link>
                                 </Button>
                             </>
