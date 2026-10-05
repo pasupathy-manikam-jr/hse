@@ -157,3 +157,85 @@
         box-shadow: none !important;
     }
 }
+
+/* The user guide (server-rendered Markdown). */
+.guide {
+    line-height: 1.7;
+}
+.guide h1 {
+    margin-bottom: 1rem;
+    font-size: 1.875rem;
+    font-weight: 600;
+}
+.guide h2 {
+    margin: 2.5rem 0 0.75rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.375rem;
+    font-size: 1.375rem;
+    font-weight: 600;
+    scroll-margin-top: 1rem;
+}
+.guide h3 {
+    margin: 1.75rem 0 0.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    scroll-margin-top: 1rem;
+}
+.guide p,
+.guide ul,
+.guide ol,
+.guide table {
+    margin: 0.75rem 0;
+}
+.guide ul {
+    list-style: disc;
+    padding-inline-start: 1.5rem;
+}
+.guide ol {
+    list-style: decimal;
+    padding-inline-start: 1.5rem;
+}
+.guide li + li {
+    margin-top: 0.25rem;
+}
+.guide a {
+    color: var(--color-green-700);
+    text-decoration: underline;
+}
+.guide .heading-permalink {
+    margin-inline-start: 0.5rem;
+    color: var(--muted-foreground);
+    text-decoration: none;
+    opacity: 0;
+}
+.guide :is(h2, h3):hover .heading-permalink {
+    opacity: 1;
+}
+.guide table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+.guide :is(th, td) {
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.75rem;
+    text-align: start;
+    vertical-align: top;
+}
+.guide th {
+    background: var(--muted);
+    font-weight: 600;
+}
+.guide .guide-toc {
+    columns: 2;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1rem 1rem 1rem 2.25rem;
+}
+.guide .guide-toc a {
+    color: inherit;
+    text-decoration: none;
+}
+.guide .guide-toc a:hover {
+    text-decoration: underline;
+}

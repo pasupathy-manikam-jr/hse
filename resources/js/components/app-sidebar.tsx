@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import {
+    BookOpen,
     ClipboardCheck,
     Eye,
     FileSearch,
@@ -33,7 +34,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useCan } from '@/hooks/use-can';
-import { dashboard } from '@/routes';
+import { dashboard, guide } from '@/routes';
 import actions from '@/routes/actions';
 import audits from '@/routes/audits';
 import checklists from '@/routes/checklists';
@@ -225,6 +226,19 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            asChild
+                            tooltip={{ children: 'User guide' }}
+                        >
+                            <Link href={guide()}>
+                                <BookOpen />
+                                <span>User guide</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

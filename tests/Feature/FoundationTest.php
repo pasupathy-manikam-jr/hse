@@ -48,3 +48,10 @@ test('a missing page renders the error page for guests too', function () {
         ->assertNotFound()
         ->assertInertia(fn (AssertableInertia $page) => $page->component('error')->where('status', 404));
 });
+
+test('every role can read the user guide, rendered from Markdown with HTML escaped', function () {
+    $this->actingAs($this->userWithRole('worker'))->get(route('guide'))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('guide')
+            ->where('html', fn (string $html) => str_contains($html, '<h2') && str_contains($html, 'Permits to work') && str_contains($html, 'guide-toc')));
+});
