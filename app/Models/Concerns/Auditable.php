@@ -32,15 +32,25 @@ trait Auditable
      */
     public function audit(string $event, ?array $old, ?array $new): void
     {
+        $hidden = $this->hidesAuditActor($event);
+
         AuditLog::query()->create([
-            'user_id' => auth()->id(),
+            'user_id' => $hidden ? null : auth()->id(),
             'auditable_type' => $this->getMorphClass(),
             'auditable_id' => $this->getKey(),
             'event' => $event,
             'old_values' => $old,
             'new_values' => $new,
-            'ip_address' => request()->ip(),
+            'ip_address' => $hidden ? null : request()->ip(),
         ]);
+    }
+
+    /**
+     * Whether this event must not record who did it (an anonymous report). Models override it.
+     */
+    protected function hidesAuditActor(string $event): bool
+    {
+        return false;
     }
 
     /**

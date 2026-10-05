@@ -61,6 +61,22 @@ class TableQuery
     }
 
     /**
+     * Status tab counts in a fixed order, led by "all"; statuses with no rows show 0.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  Builder<TModel>  $query
+     * @param  list<string>  $values
+     * @return array<string, int>
+     */
+    public static function tabs(Builder $query, string $column, array $values): array
+    {
+        $counts = self::countBy($query, $column);
+
+        return ['all' => (int) $counts->sum()] + array_map(fn (string $value) => $counts[$value] ?? 0, array_combine($values, $values));
+    }
+
+    /**
      * The filter values echoed back to the page.
      *
      * @param  list<string>  $extra  module-specific filter keys

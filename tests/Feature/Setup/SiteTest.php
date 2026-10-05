@@ -43,7 +43,7 @@ test('a site with users cannot be deleted', function () {
 
     $this->actingAs($this->userWithRole('hse-manager'))->delete(route('sites.destroy', $site));
 
-    expect($site->exists())->toBeTrue();
+    expect($site->fresh())->not->toBeNull();
 });
 
 test('areas are added once per site and removed only through their own site', function () {

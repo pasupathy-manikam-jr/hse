@@ -12,7 +12,7 @@ void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {
         switch (true) {
-            case name === 'welcome':
+            case name === 'welcome' || name === 'error':
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
@@ -38,3 +38,17 @@ void createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+// The service worker lets the report form open without signal (public/sw.js). Its URL comes from
+// the page, so it works under a subfolder too.
+const serviceWorker = document
+    .querySelector<HTMLMetaElement>('meta[name="service-worker"]')
+    ?.getAttribute('content');
+
+if (serviceWorker && 'serviceWorker' in navigator) {
+    void navigator.serviceWorker
+        .register(serviceWorker, {
+            scope: new URL('./', serviceWorker).pathname,
+        })
+        .catch(() => undefined);
+}

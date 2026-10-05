@@ -74,6 +74,7 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
 
     return (
         <form
+            noValidate
             onSubmit={handleSubmit}
             className="space-y-4 rounded-lg border border-border bg-muted/50 p-4"
         >

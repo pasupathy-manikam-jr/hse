@@ -1,18 +1,17 @@
 import { router } from '@inertiajs/react';
 import type { InertiaLinkProps } from '@inertiajs/react';
 import {
-    CalendarClock,
-    CalendarX,
+    Archive,
+    Ban,
     Circle,
-    CircleAlert,
     CircleCheck,
-    CircleX,
+    CircleDot,
     Clock,
-    FileText,
     LayoutGrid,
-    Loader,
-    UserX,
-    RotateCcw,
+    ListTodo,
+    Pause,
+    Play,
+    Search,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -80,32 +79,23 @@ export function FilterSelect({
 // Icon per common status; anything else gets a neutral dot.
 const STATUS_ICONS: Record<string, LucideIcon> = {
     all: LayoutGrid,
-    active: CircleCheck,
+    open: CircleDot,
+    actioned: ListTodo,
+    reported: CircleDot,
+    draft: CircleDot,
     approved: CircleCheck,
+    'in-progress': Clock,
     completed: CircleCheck,
-    published: CircleCheck,
-    hired: CircleCheck,
-    present: CircleCheck,
-    pass: CircleCheck,
-    acknowledged: CircleCheck,
-    issued: CircleAlert,
-    inactive: CircleX,
-    rejected: CircleX,
-    cancelled: CircleX,
-    declined: CircleX,
-    fail: CircleX,
-    terminated: UserX,
-    probation: Clock,
-    pending: Clock,
-    pending_approval: Clock,
-    renewed: RotateCcw,
-    in_progress: Clock,
-    scheduled: Clock,
-    upcoming: Clock,
-    planned: CalendarClock,
-    ongoing: Loader,
-    draft: FileText,
-    expired: CalendarX,
+    requested: CircleDot,
+    planned: CircleDot,
+    active: Play,
+    suspended: Pause,
+    cancelled: Ban,
+    'under-investigation': Search,
+    'actions-in-progress': ListTodo,
+    done: Clock,
+    verified: CircleCheck,
+    closed: Archive,
 };
 
 /** The demo's underlined status tabs with icons and count pills; filters by status (or another `name` filter). */
@@ -127,9 +117,7 @@ export function StatusTabs({
         <div role="tablist" className="-mb-px flex flex-wrap gap-x-2">
             {Object.entries(counts).map(([status, count]) => {
                 const selected = current === status;
-                const Icon =
-                    STATUS_ICONS[status.toLowerCase().replace(/ /g, '_')] ??
-                    Circle;
+                const Icon = STATUS_ICONS[status] ?? Circle;
 
                 return (
                     <button
@@ -152,7 +140,7 @@ export function StatusTabs({
                         <Icon className="size-4" />
                         {t(
                             status
-                                .replace(/_/g, ' ')
+                                .replace(/[_-]/g, ' ')
                                 .replace(/\b\w/g, (c) => c.toUpperCase()),
                         )}
                         <span

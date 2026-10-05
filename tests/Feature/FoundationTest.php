@@ -3,6 +3,7 @@
 use App\Models\AuditLog;
 use App\Models\Site;
 use App\Support\Sequence;
+use Inertia\Testing\AssertableInertia;
 
 test('sequence numbers count up per prefix and year', function () {
     $year = now()->year;
@@ -33,4 +34,17 @@ test('hidden user attributes never reach the audit trail', function () {
     expect(AuditLog::query()->where('auditable_id', $user->id)->where('event', 'created')->value('new_values'))
         ->not->toHaveKey('password')
         ->not->toHaveKey('remember_token');
+});
+
+test('a forbidden page renders the error page with its status', function () {
+    $this->actingAs($this->userWithRole('worker'))
+        ->get(route('sites.index'))
+        ->assertForbidden()
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('error')->where('status', 403));
+});
+
+test('a missing page renders the error page for guests too', function () {
+    $this->get('/no-such-page')
+        ->assertNotFound()
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('error')->where('status', 404));
 });

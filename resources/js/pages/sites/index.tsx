@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { MapPinned, Plus, SquarePen, Trash2, X } from 'lucide-react';
+import { Building2, MapPinned, Plus, SquarePen, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DataTable } from '@/components/data-table';
@@ -180,6 +180,8 @@ export default function Sites({
                 open={formOpen}
                 onOpenChange={setFormOpen}
                 title={editing ? 'Edit Site' : 'Add Site'}
+                description="A workplace such as a project site, plant or depot. Inactive sites take no new reports."
+                icon={Building2}
                 onSubmit={(e) => {
                     e.preventDefault();
                     form.submit(
@@ -202,8 +204,6 @@ export default function Sites({
                         </Label>
                         <Input
                             id="site-code"
-                            required
-                            maxLength={20}
                             value={form.data.code}
                             onChange={(e) =>
                                 form.setData(
@@ -221,7 +221,6 @@ export default function Sites({
                         </Label>
                         <Input
                             id="site-name"
-                            required
                             value={form.data.name}
                             onChange={(e) =>
                                 form.setData('name', e.target.value)
@@ -256,21 +255,26 @@ export default function Sites({
                 open={areaSite !== null}
                 onOpenChange={(open) => !open && setAreasOf(null)}
             >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>
-                            {t('Areas of :site', {
-                                site: areaSite?.name ?? '',
-                            })}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {t(
-                                'Zones where incidents, observations and permits are located.',
-                            )}
-                        </DialogDescription>
+                <DialogContent className="gap-0 overflow-hidden p-0">
+                    <DialogHeader className="flex-row items-center gap-3 border-b px-6 py-4 pe-12 text-left">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-400">
+                            <MapPinned className="size-5" />
+                        </span>
+                        <div className="grid gap-1">
+                            <DialogTitle>
+                                {t('Areas of :site', {
+                                    site: areaSite?.name ?? '',
+                                })}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {t(
+                                    'Zones where incidents, observations and permits are located.',
+                                )}
+                            </DialogDescription>
+                        </div>
                     </DialogHeader>
                     {areaSite && (
-                        <>
+                        <div className="grid gap-4 px-6 py-5">
                             <ul className="divide-y rounded-md border">
                                 {areaSite.areas.length === 0 && (
                                     <li className="p-3 text-sm text-muted-foreground">
@@ -305,6 +309,7 @@ export default function Sites({
                                 ))}
                             </ul>
                             <form
+                                noValidate
                                 className="grid gap-2"
                                 onSubmit={(e) => {
                                     e.preventDefault();
@@ -323,7 +328,6 @@ export default function Sites({
                                 <div className="flex gap-2">
                                     <Input
                                         id="area-name"
-                                        required
                                         value={areaForm.data.name}
                                         onChange={(e) =>
                                             areaForm.setData(
@@ -341,7 +345,7 @@ export default function Sites({
                                 </div>
                                 <InputError message={areaForm.errors.name} />
                             </form>
-                        </>
+                        </div>
                     )}
                 </DialogContent>
             </Dialog>

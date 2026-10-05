@@ -55,6 +55,7 @@ export default function TwoFactorChallenge() {
 
             <div className="space-y-6">
                 <Form
+                    noValidate
                     {...store.form()}
                     className="space-y-4"
                     resetOnError
@@ -69,7 +70,6 @@ export default function TwoFactorChallenge() {
                                         type="text"
                                         placeholder="Enter recovery code"
                                         autoFocus={showRecoveryInput}
-                                        required
                                     />
                                     <InputError
                                         message={errors.recovery_code}

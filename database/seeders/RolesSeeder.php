@@ -20,6 +20,20 @@ class RolesSeeder extends Seeder
         'users' => ['manage', 'create', 'edit', 'delete'],
         'sites' => ['manage', 'create', 'edit', 'delete'],
         'contractors' => ['manage', 'create', 'edit', 'delete', 'approve'],
+        'observations' => ['manage', 'create', 'edit', 'delete'],
+        'incidents' => ['manage', 'create', 'edit', 'delete'],
+        'risk-assessments' => ['manage', 'create', 'edit', 'approve', 'delete'],
+        'checklists' => ['manage', 'create', 'edit', 'delete'],
+        'inspections' => ['manage', 'create', 'delete'],
+        'permits' => ['manage', 'create', 'approve', 'delete'],
+        'competencies' => ['manage', 'edit'],
+        'toolbox-talks' => ['manage', 'create', 'delete'],
+        'documents' => ['manage', 'create', 'edit', 'approve'],
+        'audits' => ['manage', 'create', 'edit'],
+        'environment' => ['manage', 'edit'],
+        'chemicals' => ['manage', 'create', 'edit', 'delete'],
+        // Everyone sees and completes the actions they own; these cover the whole register.
+        'actions' => ['manage', 'create', 'verify'],
     ];
 
     /**
@@ -32,16 +46,45 @@ class RolesSeeder extends Seeder
         'hse-manager' => [
             'manage-sites', 'create-sites', 'edit-sites', 'delete-sites',
             'manage-contractors', 'create-contractors', 'edit-contractors', 'delete-contractors', 'approve-contractors',
+            'manage-observations', 'create-observations', 'edit-observations', 'delete-observations',
+            'manage-incidents', 'create-incidents', 'edit-incidents', 'delete-incidents',
+            'manage-risk-assessments', 'create-risk-assessments', 'edit-risk-assessments', 'approve-risk-assessments', 'delete-risk-assessments',
+            'manage-checklists', 'create-checklists', 'edit-checklists', 'delete-checklists',
+            'manage-inspections', 'create-inspections', 'delete-inspections',
+            'manage-permits', 'create-permits', 'approve-permits', 'delete-permits',
+            'manage-competencies', 'edit-competencies',
+            'manage-toolbox-talks', 'create-toolbox-talks', 'delete-toolbox-talks',
+            'manage-documents', 'create-documents', 'edit-documents', 'approve-documents',
+            'manage-audits', 'create-audits', 'edit-audits',
+            'manage-environment', 'edit-environment',
+            'manage-chemicals', 'create-chemicals', 'edit-chemicals', 'delete-chemicals',
+            'manage-actions', 'create-actions', 'verify-actions',
         ],
-        'supervisor' => ['manage-sites', 'manage-contractors', 'create-contractors', 'edit-contractors'],
-        'permit-issuer' => ['manage-sites', 'manage-contractors'],
-        'worker' => [],
-        'auditor' => ['manage-sites', 'manage-contractors'],
+        'supervisor' => [
+            'manage-sites', 'manage-contractors', 'create-contractors', 'edit-contractors',
+            'manage-observations', 'create-observations', 'edit-observations',
+            'manage-incidents', 'create-incidents', 'edit-incidents',
+            'manage-risk-assessments', 'create-risk-assessments', 'edit-risk-assessments',
+            'manage-checklists', 'manage-inspections', 'create-inspections',
+            'manage-permits', 'create-permits', 'manage-competencies', 'edit-competencies',
+            'manage-toolbox-talks', 'create-toolbox-talks', 'manage-documents', 'manage-audits',
+            'manage-environment', 'edit-environment', 'manage-chemicals', 'create-chemicals', 'edit-chemicals',
+            'manage-actions', 'create-actions', 'verify-actions',
+        ],
+        'permit-issuer' => ['manage-sites', 'manage-contractors', 'manage-observations', 'create-observations', 'manage-incidents', 'create-incidents',
+            'manage-risk-assessments', 'manage-inspections', 'create-inspections',
+            'manage-permits', 'create-permits', 'approve-permits', 'manage-competencies',
+            'manage-toolbox-talks', 'create-toolbox-talks', 'manage-documents', 'manage-chemicals', 'manage-actions'],
+        // Workers can read the chemical register and its safety data sheets (right to know).
+        'worker' => ['create-observations', 'manage-chemicals'],
+        'auditor' => ['manage-sites', 'manage-contractors', 'manage-observations', 'manage-incidents', 'manage-risk-assessments', 'manage-checklists', 'manage-inspections',
+            'manage-permits', 'manage-competencies', 'manage-toolbox-talks', 'manage-documents',
+            'manage-audits', 'create-audits', 'edit-audits', 'manage-environment', 'manage-chemicals', 'manage-actions', 'create-actions'],
     ];
 
     public static function label(string $role): string
     {
-        return array_key_exists($role, self::ROLES) ? Str::headline($role) : $role;
+        return array_key_exists($role, self::ROLES) ? str_replace('Hse ', 'HSE ', Str::headline($role)) : $role;
     }
 
     public function run(): void

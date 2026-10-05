@@ -25,6 +25,7 @@ export default function Login({ status, canResetPassword }: Props) {
             <PasskeyVerify />
 
             <Form
+                noValidate
                 {...store.form()}
                 resetOnSuccess={['password']}
                 className="flex flex-col gap-6"
@@ -38,7 +39,6 @@ export default function Login({ status, canResetPassword }: Props) {
                                     id="email"
                                     type="email"
                                     name="email"
-                                    required
                                     autoFocus
                                     tabIndex={1}
                                     autoComplete="email"
@@ -63,7 +63,6 @@ export default function Login({ status, canResetPassword }: Props) {
                                 <PasswordInput
                                     id="password"
                                     name="password"
-                                    required
                                     tabIndex={2}
                                     autoComplete="current-password"
                                     placeholder="Password"

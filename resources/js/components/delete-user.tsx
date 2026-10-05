@@ -55,6 +55,7 @@ export default function DeleteUser() {
                         </DialogDescription>
 
                         <Form
+                            noValidate
                             {...ProfileController.destroy.form()}
                             options={{
                                 preserveScroll: true,

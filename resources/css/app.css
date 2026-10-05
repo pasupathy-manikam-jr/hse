@@ -141,3 +141,19 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Printing (the injury log): drop the app chrome and print the page content only. */
+@media print {
+    [data-slot^='sidebar']:not(
+        [data-slot='sidebar-wrapper'],
+        [data-slot='sidebar-inset']
+    ) {
+        display: none !important;
+    }
+
+    [data-slot='sidebar-inset'] {
+        margin: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+}

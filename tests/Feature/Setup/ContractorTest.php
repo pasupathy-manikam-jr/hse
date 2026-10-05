@@ -47,7 +47,7 @@ test('a contractor with workers cannot be deleted', function () {
 
     $this->actingAs($this->userWithRole('hse-manager'))->delete(route('contractors.destroy', $contractor));
 
-    expect($contractor->exists())->toBeTrue();
+    expect($contractor->fresh())->not->toBeNull();
 });
 
 test('a contractor can work only when approved and insured through today', function (bool $approved, ?string $expires, bool $canWork) {

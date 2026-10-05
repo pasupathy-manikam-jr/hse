@@ -115,7 +115,6 @@ export function SelectField({
         <Select
             value={current === '' ? (required || !empty ? '' : EMPTY) : current}
             onValueChange={change}
-            required={required}
             disabled={disabled}
             name={name}
         >

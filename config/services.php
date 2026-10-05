@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    // Optional: AI drafting of incident reports from a plain description. Off without a key.
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-opus-5-5'),
+    ],
+
 ];

@@ -60,7 +60,7 @@ export default function ManageTwoFactor(props: Props) {
                     </p>
 
                     <div className="relative inline">
-                        <Form {...disable.form()}>
+                        <Form noValidate {...disable.form()}>
                             {({ processing }) => (
                                 <Button
                                     variant="destructive"
@@ -96,6 +96,7 @@ export default function ManageTwoFactor(props: Props) {
                             </Button>
                         ) : (
                             <Form
+                                noValidate
                                 {...enable.form()}
                                 onSuccess={() => setShowSetupModal(true)}
                             >

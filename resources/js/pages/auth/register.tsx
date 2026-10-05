@@ -18,6 +18,7 @@ export default function Register({ passwordRules }: Props) {
         <>
             <Head title="Register" />
             <Form
+                noValidate
                 {...store.form()}
                 resetOnSuccess={['password', 'password_confirmation']}
                 disableWhileProcessing
@@ -31,7 +32,6 @@ export default function Register({ passwordRules }: Props) {
                                 <Input
                                     id="name"
                                     type="text"
-                                    required
                                     autoFocus
                                     tabIndex={1}
                                     autoComplete="name"
@@ -49,7 +49,6 @@ export default function Register({ passwordRules }: Props) {
                                 <Input
                                     id="email"
                                     type="email"
-                                    required
                                     tabIndex={2}
                                     autoComplete="email"
                                     name="email"
@@ -62,7 +61,6 @@ export default function Register({ passwordRules }: Props) {
                                 <Label htmlFor="password">Password</Label>
                                 <PasswordInput
                                     id="password"
-                                    required
                                     tabIndex={3}
                                     autoComplete="new-password"
                                     name="password"
@@ -78,7 +76,6 @@ export default function Register({ passwordRules }: Props) {
                                 </Label>
                                 <PasswordInput
                                     id="password_confirmation"
-                                    required
                                     tabIndex={4}
                                     autoComplete="new-password"
                                     name="password_confirmation"

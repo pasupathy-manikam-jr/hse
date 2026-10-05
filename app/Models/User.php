@@ -4,12 +4,15 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -74,6 +77,32 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function contractor(): BelongsTo
     {
         return $this->belongsTo(Contractor::class);
+    }
+
+    /**
+     * Document revisions this user has been asked to read (acknowledged_at once they confirm).
+     *
+     * @return BelongsToMany<DocumentRevision, $this>
+     */
+    public function readings(): BelongsToMany
+    {
+        return $this->belongsToMany(DocumentRevision::class, 'document_acknowledgements')->withPivot('acknowledged_at')->withTimestamps();
+    }
+
+    /**
+     * @return HasMany<UserCompetency, $this>
+     */
+    public function competencies(): HasMany
+    {
+        return $this->hasMany(UserCompetency::class);
+    }
+
+    /**
+     * Whether the user holds a record of the competency valid on that day.
+     */
+    public function hasValidCompetency(Competency $competency, CarbonInterface $day): bool
+    {
+        return $this->competencies->contains(fn (UserCompetency $c) => $c->competency_id === $competency->id && $c->isValidOn($day));
     }
 
     /**

@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Plus, SquarePen, Trash2 } from 'lucide-react';
+import { Plus, SquarePen, Trash2, UserPen, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DataTable } from '@/components/data-table';
@@ -206,6 +206,8 @@ export default function Users({
                 open={formOpen}
                 onOpenChange={setFormOpen}
                 title={editing ? 'Edit User' : 'Add User'}
+                description="Their role decides what they can open. A home site limits them to that site's records."
+                icon={editing ? UserPen : UserPlus}
                 onSubmit={(e) => {
                     e.preventDefault();
                     form.submit(
@@ -228,7 +230,6 @@ export default function Users({
                         </Label>
                         <Input
                             id="user-name"
-                            required
                             value={form.data.name}
                             onChange={(e) =>
                                 form.setData('name', e.target.value)
@@ -244,7 +245,6 @@ export default function Users({
                         <Input
                             id="user-email"
                             type="email"
-                            required
                             value={form.data.email}
                             onChange={(e) =>
                                 form.setData('email', e.target.value)
@@ -262,7 +262,6 @@ export default function Users({
                                 <Input
                                     id="user-password"
                                     type="password"
-                                    required
                                     autoComplete="new-password"
                                     value={form.data.password}
                                     onChange={(e) =>
@@ -279,7 +278,6 @@ export default function Users({
                                 <Input
                                     id="user-password-confirmation"
                                     type="password"
-                                    required
                                     autoComplete="new-password"
                                     value={form.data.password_confirmation}
                                     onChange={(e) =>
@@ -299,7 +297,6 @@ export default function Users({
                         </Label>
                         <SelectField
                             id="user-role"
-                            required
                             value={form.data.role}
                             onChange={(e) =>
                                 form.setData('role', e.target.value)

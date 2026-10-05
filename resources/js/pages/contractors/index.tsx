@@ -1,8 +1,16 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { BadgeCheck, BadgeX, Plus, SquarePen, Trash2 } from 'lucide-react';
+import {
+    BadgeCheck,
+    BadgeX,
+    HardHat,
+    Plus,
+    SquarePen,
+    Trash2,
+} from 'lucide-react';
 import { useState } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DataTable } from '@/components/data-table';
+import { DatePicker } from '@/components/date-picker';
 import type { Column } from '@/components/data-table';
 import { FormDialog } from '@/components/form-dialog';
 import InputError from '@/components/input-error';
@@ -221,6 +229,8 @@ export default function Contractors({
                 open={formOpen}
                 onOpenChange={setFormOpen}
                 title={editing ? 'Edit Contractor' : 'Add Contractor'}
+                description="The company and its safety contact. Approval is a separate step."
+                icon={HardHat}
                 onSubmit={(e) => {
                     e.preventDefault();
                     form.submit(
@@ -244,15 +254,24 @@ export default function Contractors({
                                     <span className="text-destructive">*</span>
                                 )}
                             </Label>
-                            <Input
-                                id={`contractor-${key}`}
-                                type={type}
-                                required={key === 'name'}
-                                value={form.data[key]}
-                                onChange={(e) =>
-                                    form.setData(key, e.target.value)
-                                }
-                            />
+                            {type === 'date' ? (
+                                <DatePicker
+                                    id={`contractor-${key}`}
+                                    value={form.data[key]}
+                                    onChange={(value) =>
+                                        form.setData(key, value)
+                                    }
+                                />
+                            ) : (
+                                <Input
+                                    id={`contractor-${key}`}
+                                    type={type}
+                                    value={form.data[key]}
+                                    onChange={(e) =>
+                                        form.setData(key, e.target.value)
+                                    }
+                                />
+                            )}
                             <InputError message={form.errors[key]} />
                         </div>
                     ))}

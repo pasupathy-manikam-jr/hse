@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -32,6 +33,18 @@ class Site extends Model
         return [
             'active' => 'boolean',
         ];
+    }
+
+    /**
+     * Active sites a user may work on: their home site, or every site.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeAvailableTo(Builder $query, User $user): void
+    {
+        $query->where('active', true)
+            ->when($user->site_id !== null, fn (Builder $q) => $q->whereKey($user->site_id))
+            ->orderBy('code');
     }
 
     /**
