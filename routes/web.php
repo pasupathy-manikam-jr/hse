@@ -9,3 +9,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
+
+foreach (glob(__DIR__.'/modules/*.php') ?: [] as $module) {
+    require $module;
+}

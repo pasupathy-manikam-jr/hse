@@ -1,0 +1,72 @@
+name: Build & Publish Deploy Branch
+
+# The servers never run npm. On every push to main, CI builds the Vite/React
+# assets and publishes a `deploy` branch = main + compiled public/build. Staging
+# tracks `deploy` and pulls it with scripts/deploy.sh.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-deploy-branch
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The Vite build invokes `php artisan wayfinder:generate`, so a bootable
+      # Laravel app (vendor + .env + APP_KEY) must exist before the JS build.
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install PHP deps
+        run: composer install --no-dev --prefer-dist --no-interaction --no-progress
+
+      # Scaffolding only, to make artisan bootable; the server keeps its own .env.
+      # VITE_* values are compiled into the bundle, so set the app name explicitly.
+      - name: Prepare Laravel env for build
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          sed -i '/^VITE_APP_NAME=/d' .env
+          echo 'VITE_APP_NAME="HSE"' >> .env
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install JS deps
+        run: npm ci
+
+      # Staging serves the app from https://ui.staging.oriclabdev.com/hse.
+      - name: Build assets
+        run: APP_PATH_PREFIX=hse npm run build
+
+      - name: Publish deploy branch (main + built assets)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B deploy
+          # public/build is gitignored on main; force-add it for the deploy branch.
+          git add -f public/build
+          git commit --allow-empty -m "deploy: build assets for ${GITHUB_SHA::7}"
+
+          # deploy is a rebuilt snapshot each run -> force push.
+          git push -f origin deploy
