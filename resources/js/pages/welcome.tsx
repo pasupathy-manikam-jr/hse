@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Button } from '@/components/ui/button';
-import { dashboard, login, register } from '@/routes';
+import { dashboard, login } from '@/routes';
 
 // The linked chain from PLAN.md: each record feeds the next.
 const CHAIN = [
@@ -67,7 +67,7 @@ const MODULES = [
     },
 ];
 
-export default function Welcome({ canRegister }: { canRegister: boolean }) {
+export default function Welcome() {
     const { auth, name } = usePage().props;
 
     return (
@@ -91,11 +91,6 @@ export default function Welcome({ canRegister }: { canRegister: boolean }) {
                                 <Button variant="ghost" asChild>
                                     <Link href={login()}>Log in</Link>
                                 </Button>
-                                {canRegister && (
-                                    <Button variant="outline" asChild>
-                                        <Link href={register()}>Register</Link>
-                                    </Button>
-                                )}
                             </>
                         )}
                     </nav>
