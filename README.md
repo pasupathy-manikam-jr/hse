@@ -39,7 +39,7 @@ composer dev            # app, queue, logs and Vite together
 
 `.env.example` uses SQLite; for MySQL set the `DB_*` values.
 
-Demo accounts (password `Zx123456`): `admin@example.com`, `hse-manager@example.com`, `supervisor@example.com`, `permit-issuer@example.com`, `worker@example.com`, `auditor@example.com`. Change or remove them before going live.
+Demo accounts (password `DEMO_PASSWORD`, default `Zx123456`; `DEMO_LOGINS=true` lists them on the login page): `admin@example.com`, `hse-manager@example.com`, `supervisor@example.com`, `permit-issuer@example.com`, `worker@example.com`, `auditor@example.com`. Change or remove them before going live.
 
 ## Configuration
 

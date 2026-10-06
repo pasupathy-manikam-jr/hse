@@ -29,6 +29,21 @@ use Illuminate\Support\Str;
 class DatabaseSeeder extends Seeder
 {
     /**
+     * One demo account per role, <role>@example.com, all with the DEMO_PASSWORD password.
+     * With DEMO_LOGINS=true the login page also offers them as one-click logins.
+     *
+     * @return list<array{name: string, email: string, password: string}>
+     */
+    public static function logins(): array
+    {
+        return array_map(fn (string $role) => [
+            'name' => RolesSeeder::label($role),
+            'email' => "{$role}@example.com",
+            'password' => (string) config('app.demo_password'),
+        ], array_keys(RolesSeeder::ROLES));
+    }
+
+    /**
      * Seed the application's database. Safe to run more than once. Model events stay on,
      * so seeded records get their creators and audit trail like any other.
      */
@@ -55,13 +70,13 @@ class DatabaseSeeder extends Seeder
             'phone' => '+60 3-1234 5678', 'insurance_expires_on' => now()->addMonths(8)->toDateString(), 'approved' => true,
         ]);
 
-        // One demo account per role: <role>@example.com / Zx123456. Site staff work at the tower project.
-        $password = Hash::make('Zx123456');
+        // One demo account per role, see logins(). Site staff work at the tower project.
         $tower = Site::query()->where('code', 'KL-TWR')->value('id');
 
-        foreach (array_keys(RolesSeeder::ROLES) as $role) {
-            User::query()->firstOrCreate(['email' => "{$role}@example.com"], [
-                'name' => RolesSeeder::label($role), 'password' => $password, 'email_verified_at' => now(),
+        foreach (self::logins() as ['name' => $name, 'email' => $email, 'password' => $password]) {
+            $role = Str::before($email, '@');
+            User::query()->firstOrCreate(['email' => $email], [
+                'name' => $name, 'password' => Hash::make($password), 'email_verified_at' => now(),
                 'site_id' => in_array($role, ['supervisor', 'permit-issuer', 'worker'], true) ? $tower : null,
                 'contractor_id' => $role === 'worker' ? $contractor->id : null,
             ])->syncRoles([$role]);
@@ -218,7 +233,7 @@ class DatabaseSeeder extends Seeder
             'precautions' => $precautions('work-at-height'),
         ]);
         $height->workers()->sync([$user('worker')->id]);
-        $height->transitionTo('approved', $user('permit-issuer'), password: 'Zx123456');
+        $height->transitionTo('approved', $user('permit-issuer'), password: (string) config('app.demo_password'));
         $height->transitionTo('active', $user('supervisor'));
 
         // Blocked: the worker's confined-space ticket has expired and no gas test is recorded.

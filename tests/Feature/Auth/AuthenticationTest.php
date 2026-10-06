@@ -1,13 +1,41 @@
 <?php
 
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 
 test('login screen can be rendered', function () {
     $response = $this->get(route('login'));
 
     $response->assertOk();
+});
+
+test('login screen hides demo logins by default', function () {
+    config(['app.demo_logins' => false]);
+
+    $this->get(route('login'))->assertInertia(fn (Assert $page) => $page->where('demoLogins', []));
+});
+
+test('login screen offers one demo login per role when enabled', function () {
+    config(['app.demo_logins' => true, 'app.demo_password' => 'demo-secret']);
+
+    $this->get(route('login'))->assertInertia(fn (Assert $page) => $page
+        ->has('demoLogins', 6)
+        ->where('demoLogins.0', ['name' => 'Admin', 'email' => 'admin@example.com', 'password' => 'demo-secret'])
+        ->where('demoLogins.1.name', 'HSE Manager'));
+});
+
+test('seeded demo accounts can log in with the demo password', function () {
+    Storage::fake();
+    config(['app.demo_password' => 'demo-secret']);
+    $this->seed(DatabaseSeeder::class);
+
+    $this->post(route('login.store'), ['email' => 'worker@example.com', 'password' => 'demo-secret']);
+
+    $this->assertAuthenticated();
 });
 
 test('users can authenticate using the login screen', function () {

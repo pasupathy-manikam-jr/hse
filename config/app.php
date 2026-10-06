@@ -16,6 +16,17 @@ return [
     'name' => env('APP_NAME', 'Laravel'),
 
     /*
+    | Demo accounts (one per role, see DatabaseSeeder::logins()). The password is
+    | env-driven so a demo server can use its own. DEMO_LOGINS shows them as
+    | one-click logins on the login page: local and demo servers only, it
+    | publishes the password.
+    */
+
+    'demo_password' => env('DEMO_PASSWORD', 'Zx123456'),
+
+    'demo_logins' => (bool) env('DEMO_LOGINS', false),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
