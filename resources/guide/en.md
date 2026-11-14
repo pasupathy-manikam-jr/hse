@@ -14,8 +14,9 @@ Sign in with the email and password your administrator gave you. Under **Setting
 
 The sidebar groups the work:
 
+- **Platform**: the dashboard and the weekly report.
 - **Report**: report an observation, observations, incidents and the actions list.
-- **Control**: risk assessments, inspections, audits, documents, permits to work and shift handovers.
+- **Control**: risk assessments, inspections, audits, gap analysis, documents, permits to work, shift handovers and the equipment register.
 - **Environment**: the environmental log and the chemical register.
 - **People**: the training matrix and toolbox talks.
 - **Setup**: sites, contractors, checklists and users.
@@ -40,14 +41,14 @@ Some steps are signed: approving or closing a permit, approving a document revis
 
 ## Roles
 
-| Role          | What they do                                                                                                                                                      |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Admin         | Everything, including users.                                                                                                                                      |
-| HSE manager   | Runs the system: approves risk assessments and documents, verifies actions, enters hours worked, manages sites, contractors and checklists.                       |
-| Supervisor    | Reports and investigates incidents, raises and verifies actions, writes risk assessments, runs inspections, requests permits, records training and toolbox talks. |
-| Permit issuer | Approves (signs) permits to work, reports observations and incidents, runs inspections.                                                                           |
-| Worker        | Reports observations, completes the actions given to them, reads documents they are asked to read, and can open the chemical register.                            |
-| Auditor       | Reads everything and conducts internal audits.                                                                                                                    |
+| Role          | What they do                                                                                                                                                                                                                 |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin         | Everything, including users.                                                                                                                                                                                                 |
+| HSE manager   | Runs the system: approves risk assessments and documents, verifies actions, enters hours worked, chooses the observation of the month, manages sites, contractors, checklists and equipment.                                 |
+| Supervisor    | Reports and investigates incidents, reviews and dismisses observations, raises and verifies actions, writes risk assessments, runs inspections, requests permits, records training, toolbox talks and equipment inspections. |
+| Permit issuer | Approves (signs) permits to work, reports observations and incidents, runs inspections.                                                                                                                                      |
+| Worker        | Reports observations, completes the actions given to them, reads documents they are asked to read, and can open the chemical register.                                                                                       |
+| Auditor       | Reads everything and conducts internal audits.                                                                                                                                                                               |
 
 ## Dashboard
 
@@ -57,6 +58,7 @@ The dashboard shows, for the last 12 months or the year to date and for one site
 - **Injuries**: LTIFR (lost-time injuries per million hours), TRIR (recordable injuries per 200,000 hours), the counts behind them, hours worked, and days since the last lost-time injury at each site. The rates need monthly hours worked (see below).
 - **Safety pyramid**: near misses, first aid, medical treatment, restricted work, lost time and fatalities in the period.
 - **Observations reported** per month, and **Prevention**: inspections completed and their average score, toolbox talks, open and overdue actions.
+- **Observation of the month** at each site, **what observations are about** (the most common topics) and the **top reporters** (named reports only; anonymous and dismissed ones are not counted).
 
 **Hours worked** (HSE managers): click **Hours worked**, choose the site and month, and enter the total hours worked by staff and contractors. Saving the same month again corrects it.
 
@@ -65,7 +67,7 @@ The dashboard shows, for the last 12 months or the year to date and for one site
 Use **Report** in the sidebar. It is built for a phone:
 
 1. Tap what you saw: unsafe condition, unsafe act, near miss, environmental, or good practice.
-2. Choose the area, check the date and time, and describe it. Say what you did about it if anything.
+2. Choose the area, check the date and time, pick what it is about (PPE, housekeeping, lifting…) if you know, and describe it. Say what you did about it if anything.
 3. Choose how bad it could have been, add up to five photos (the camera or your gallery) and, if you like, **Add my location**.
 4. Tick **Report anonymously** if you prefer: your name is then not stored with the report or in its history.
 5. **Send report**.
@@ -76,9 +78,13 @@ Use **Report** in the sidebar. It is built for a phone:
 
 Supervisors and managers see all reports under **Observations**. Open one to see the photos and the map link, then:
 
+- **Review** to set the topic and the crew (contractor) involved. These feed the dashboard trends.
 - **Raise action** for each fix needed. The observation becomes _actioned_.
 - **Escalate to incident** if it turned out to be an incident: the incident form opens with the details filled in.
 - **Close** it once every action is verified (or straight away if nothing more is needed).
+- **Dismiss** a report that is not valid, such as a duplicate or something that is not a hazard, and say why. Only a report with no actions can be dismissed. It is kept, but takes no actions and is left out of every count.
+
+**Observation of the month** (HSE managers): open a good report from a named person and click **Observation of the month**, saying why it stood out. Each site has one per month, for the month the observation was made. It shows on everyone's dashboard with the reporter's name.
 
 ## Incidents
 
@@ -137,6 +143,8 @@ On the permit:
 
 A permit issuer (not the person who requested it) **Approves** it with their password. Approval is refused while any precaution is unticked, the contractor is not approved or insured, a worker lacks a valid ticket for this type of work up to the permit's end, the risk assessment is no longer the approved revision, or (confined space) there is no passing gas test. The page lists what is missing.
 
+If the work uses equipment from the register, list it under **Equipment used**. Approval is also refused while any of it is out of service or not inspected through the end of the permit.
+
 Then **Start work** (only within the permit's times; confined-space entry also needs a passing gas test from the last 2 hours), **Suspend** with a reason and **Resume**, and finally **Close** with your password once every isolation is removed. A request can be **Cancelled** with a reason before work starts. Hot work and confined-space permits in the same area at overlapping times are flagged on both permits.
 
 ### Shift handovers
@@ -153,6 +161,28 @@ The **Training matrix** shows each person against each competency: green valid, 
 
 **Audits → Plan audit**: the site, title, lead auditor, date and the ISO 45001 clauses in scope. **Start audit**, then **Add finding** for each: a major or minor nonconformity, an observation, or an opportunity for improvement. A nonconformity needs an action owner and due date, and raises a corrective action. **Complete** the audit with a summary.
 
+## Gap analysis
+
+A gap analysis checks how close a site is to ISO 45001, clause by clause. Run one before certification and then once a year to show progress. An internal audit is different: it checks that you follow your own system, for the clauses you choose.
+
+**Gap analysis → Start gap analysis**: the site, a title and the date. All 29 clauses are listed. For each one choose **Conforms** (in place, with evidence), **Partly**, **Gap** (not done) or **N/A**, and write the evidence you saw or what is missing. **Save ratings** as you go.
+
+The score for each section (§4 to §10) and overall counts conforms as 100 %, partly as 50 % and gap as 0 %; N/A is left out. A grey mark shows the site's last completed gap analysis, so you can see the change. **Raise action** for each gap to close it. **Complete** it with a summary once every clause is rated and every gap or partial rating says what is missing; it is then read-only.
+
+## Equipment register
+
+**Equipment register → Add equipment**: the asset tag, type (lifting, pressure system, fire, scaffold or access, electrical, vehicle or mobile plant, other), description, serial number, site and area, the person responsible, and how often it must be inspected.
+
+Click the clipboard on a row to see its inspections and **Record inspection**: the date, passed or failed, who inspected it (a competent person or an inspection body), defects found, and the certificate. The latest inspection sets the next due date. A failure takes the equipment out of service, and a later pass puts it back. The list flags equipment that is overdue or due within 30 days, and can be filtered to show just those.
+
+Equipment named on a permit cannot be deleted; mark it out of service instead.
+
+## Weekly report
+
+**Weekly report** shows one week, Monday to Sunday, for one site or all your sites: observations by type and topic, incidents, inspections and their average score, toolbox talks and attendance, permits approved, actions raised, verified, open and overdue (with the overdue ones listed), equipment overdue for inspection, and days since the last lost-time injury. Use the arrows to move between weeks, and **Print** for the weekly meeting.
+
+To have it emailed, edit the site under **Sites** and add the addresses under **Weekly report email**. Every Monday at 07:30 they get last week's figures with a link to the full report. The email carries counts only; the details stay behind the sign-in.
+
 ## Documents
 
 **Documents → New document**: the number, title, type, owner, review interval and ISO 45001 clauses. Revision A starts as a draft: upload the file, say what changed, and **Send for approval**. Someone other than the author **Approves** it with their password, and it comes into force, replacing the previous revision.
@@ -167,11 +197,13 @@ On an effective revision, **Ask people to read** it. They find it under **My rea
 
 ## Setup (administrators and HSE managers)
 
-- **Sites**: add sites and their areas (click the map-pin icon on a site to manage its areas).
+- **Sites**: add sites and their areas (click the map-pin icon on a site to manage its areas), and who gets the site's weekly report email.
 - **Contractors**: the company, safety contact and insurance expiry. An HSE manager approves a contractor; only approved, insured contractors can work under permits.
 - **Checklists**: inspection templates (see above).
 - **Users**: each person's role, home site (blank for all sites) and employer (blank for own staff).
 
-## Daily emails
+## Emails
 
-Each morning at 07:00 everyone gets one email listing what needs them: actions due or overdue, their competencies expiring within 30 days, and permits they requested that are past their end time but still open. Nothing to report means no email.
+Each morning at 07:00 everyone gets one email listing what needs them: actions due or overdue, their competencies expiring within 30 days, permits they requested that are past their end time but still open, and equipment they are responsible for whose inspection is due within 30 days or overdue. Nothing to report means no email.
+
+Every Monday at 07:30, each site's weekly report goes to the addresses on its list (see **Weekly report**).
