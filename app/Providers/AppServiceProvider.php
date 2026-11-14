@@ -3,9 +3,14 @@
 namespace App\Providers;
 
 use Anthropic\Client;
+use App\Models\User;
 use Carbon\CarbonImmutable;
+use Dedoc\Scramble\Scramble;
+use Dedoc\Scramble\Support\Generator\OpenApi;
+use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -25,6 +30,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        // API docs at /docs/api (Scramble, a dev dependency): open locally and on staging, with bearer-token auth.
+        if (class_exists(Scramble::class)) {
+            Gate::define('viewApiDocs', fn (?User $user = null) => app()->environment(['local', 'staging']));
+            Scramble::afterOpenApiGenerated(fn (OpenApi $openApi) => $openApi->secure(SecurityScheme::http('bearer')));
+        }
     }
 
     /**

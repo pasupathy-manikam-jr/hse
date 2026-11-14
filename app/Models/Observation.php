@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -93,7 +96,8 @@ class Observation extends Model implements ActionSource
 
     public function canBeViewedBy(User $user): bool
     {
-        return $user->can('manage-observations') && $this->isVisibleTo($user);
+        // The reporter can always open their own (named) report, its photos included.
+        return ($user->can('manage-observations') && $this->isVisibleTo($user)) || ($this->reporter_id !== null && $this->reporter_id === $user->id);
     }
 
     /**
@@ -110,6 +114,46 @@ class Observation extends Model implements ActionSource
     public function area(): BelongsTo
     {
         return $this->belongsTo(Area::class);
+    }
+
+    /**
+     * Validation rules for a report (phone form and API): the site must be one the reporter
+     * may work on, and the area must be at that site.
+     *
+     * @return array<string, mixed>
+     */
+    public static function reportRules(User $user, int $siteId): array
+    {
+        return [
+            'client_ref' => ['nullable', 'uuid'],
+            'site_id' => ['required', Rule::exists('sites', 'id')->where('active', true)->when($user->site_id !== null, fn ($rule) => $rule->where('id', $user->site_id))],
+            'area_id' => ['nullable', Rule::exists('areas', 'id')->where('site_id', $siteId)],
+            'type' => ['required', Rule::in(Observation::TYPES)],
+            'topic' => ['nullable', Rule::in(Observation::TOPICS)],
+            'potential' => ['required', Rule::in(Observation::POTENTIALS)],
+            'description' => ['required', 'string', 'max:5000'],
+            'immediate_action' => ['nullable', 'string', 'max:5000'],
+            'observed_at' => ['required', 'date', 'before_or_equal:now'],
+            'anonymous' => ['boolean'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
+            ...Observation::photoRules(),
+        ];
+    }
+
+    /**
+     * Store a validated report and its photos. An anonymous report records no reporter.
+     *
+     * @param  array<string, mixed>  $data  validated by reportRules()
+     * @param  array<int, UploadedFile>  $photos
+     */
+    public static function report(User $by, array $data, array $photos = []): self
+    {
+        $anonymous = (bool) ($data['anonymous'] ?? false);
+        $observation = self::create([...Arr::except($data, 'photos'), 'anonymous' => $anonymous, 'reporter_id' => $anonymous ? null : $by->id]);
+        $observation->attachPhotos($photos);
+
+        return $observation;
     }
 
     /**

@@ -21,7 +21,7 @@ class ActionController extends Controller
     public function index(Request $request): Response
     {
         $user = $this->user($request);
-        $query = $this->visible($user)
+        $query = Action::query()->listedFor($user)
             ->with('owner:id,name', 'verifier:id,name', 'source')
             ->when($request->input('owner') === 'me', fn (Builder $q) => $q->where('owner_id', $user->id))
             ->when($request->input('owner') === 'overdue', fn (Builder $q) => $q->overdue());
@@ -70,15 +70,5 @@ class ActionController extends Controller
         $action->transitionTo('open', $user, $request->validate(['notes' => ['required', 'string', 'max:2000']])['notes']);
 
         return $this->done(__('Action sent back to its owner.'));
-    }
-
-    /**
-     * @return Builder<Action>
-     */
-    private function visible(User $user): Builder
-    {
-        return $user->can('manage-actions')
-            ? Action::query()->visibleTo($user)
-            : Action::query()->where('owner_id', $user->id);
     }
 }

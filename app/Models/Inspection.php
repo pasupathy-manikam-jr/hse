@@ -12,6 +12,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -103,6 +104,55 @@ class Inspection extends Model implements ActionSource
     public function area(): BelongsTo
     {
         return $this->belongsTo(Area::class);
+    }
+
+    /**
+     * Validation rules for saving answers (web form and API).
+     *
+     * @return array<string, mixed>
+     */
+    public static function answerRules(): array
+    {
+        return [
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'answers' => ['array'],
+            'answers.*.answer' => ['nullable', 'string', 'max:1000'],
+            'answers.*.notes' => ['nullable', 'string', 'max:2000'],
+            'answers.*.photos' => ['nullable', 'array', 'max:'.InspectionAnswer::PHOTO_MAX],
+            'answers.*.photos.*' => InspectionAnswer::photoRules()['photos.*'],
+            'complete' => ['boolean'],
+        ];
+    }
+
+    /**
+     * Save answers, notes and photos, keyed by answer id; answers not sent are cleared, as on the
+     * form. Only the inspector who started it fills it in, while it is in progress.
+     *
+     * @param  array<int|string, array{answer?: string|null, notes?: string|null}>  $answers
+     * @param  array<int|string, list<UploadedFile>>  $photos
+     */
+    public function saveAnswers(User $by, array $answers, ?string $notes, array $photos = []): void
+    {
+        if ($this->status !== 'in-progress') {
+            throw ValidationException::withMessages(['status' => __('This inspection is already completed.')]);
+        }
+
+        if ($this->created_by !== $by->id) {
+            throw ValidationException::withMessages(['status' => __('Only the inspector who started it can fill it in.')]);
+        }
+
+        foreach ($this->answers as $answer) {
+            $value = filled($answers[$answer->id]['answer'] ?? null) ? (string) $answers[$answer->id]['answer'] : null;
+
+            if ($value !== null && ! $answer->accepts($value)) {
+                throw ValidationException::withMessages(["answers.{$answer->id}.answer" => __('Enter a valid answer.')]);
+            }
+
+            $answer->update(['answer' => $value, 'notes' => filled($answers[$answer->id]['notes'] ?? null) ? (string) $answers[$answer->id]['notes'] : null]);
+            $answer->attachPhotos($photos[$answer->id] ?? []);
+        }
+
+        $this->update(['notes' => $notes]);
     }
 
     /**

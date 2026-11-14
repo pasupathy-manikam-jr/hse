@@ -11,7 +11,6 @@ use App\Support\TableQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -65,29 +64,9 @@ class ObservationController extends Controller
             return to_route('observations.create');
         }
 
-        $data = $request->validate([
-            'client_ref' => ['nullable', 'uuid'],
-            'site_id' => ['required', Rule::exists('sites', 'id')->where('active', true)->when($user->site_id !== null, fn ($rule) => $rule->where('id', $user->site_id))],
-            'area_id' => ['nullable', Rule::exists('areas', 'id')->where('site_id', $request->integer('site_id'))],
-            'type' => ['required', Rule::in(Observation::TYPES)],
-            'topic' => ['nullable', Rule::in(Observation::TOPICS)],
-            'potential' => ['required', Rule::in(Observation::POTENTIALS)],
-            'description' => ['required', 'string', 'max:5000'],
-            'immediate_action' => ['nullable', 'string', 'max:5000'],
-            'observed_at' => ['required', 'date', 'before_or_equal:now'],
-            'anonymous' => ['boolean'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180', 'required_with:latitude'],
-            ...Observation::photoRules(),
-        ]);
+        $data = $request->validate(Observation::reportRules($user, $request->integer('site_id')));
 
-        $anonymous = $request->boolean('anonymous');
-        $observation = Observation::create([
-            ...Arr::except($data, 'photos'),
-            'anonymous' => $anonymous,
-            'reporter_id' => $anonymous ? null : $user->id,
-        ]);
-        $observation->attachPhotos($request->file('photos', []));
+        $observation = Observation::report($user, $data, $data['photos'] ?? []);
 
         $this->toast('success', __(':number reported. Thank you.', ['number' => $observation->number]));
 

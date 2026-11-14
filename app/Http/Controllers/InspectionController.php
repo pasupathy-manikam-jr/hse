@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Action;
 use App\Models\ChecklistTemplate;
 use App\Models\Inspection;
-use App\Models\InspectionAnswer;
 use App\Models\Site;
 use App\Models\User;
 use App\Support\TableQuery;
@@ -13,7 +12,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -83,37 +81,8 @@ class InspectionController extends Controller
         $user = $this->user($request);
         abort_unless($inspection->isVisibleTo($user), 404);
 
-        if ($inspection->status !== 'in-progress') {
-            throw ValidationException::withMessages(['status' => __('This inspection is already completed.')]);
-        }
-
-        if ($inspection->created_by !== $user->id) {
-            throw ValidationException::withMessages(['status' => __('Only the inspector who started it can fill it in.')]);
-        }
-
-        $request->validate([
-            'notes' => ['nullable', 'string', 'max:5000'],
-            'answers' => ['array'],
-            'answers.*.answer' => ['nullable', 'string', 'max:1000'],
-            'answers.*.notes' => ['nullable', 'string', 'max:2000'],
-            'answers.*.photos' => ['nullable', 'array', 'max:'.InspectionAnswer::PHOTO_MAX],
-            'answers.*.photos.*' => InspectionAnswer::photoRules()['photos.*'],
-            'complete' => ['boolean'],
-        ]);
-
-        foreach ($inspection->answers as $answer) {
-            $key = "answers.{$answer->id}";
-            $value = $request->filled("{$key}.answer") ? $request->string("{$key}.answer")->toString() : null;
-
-            if ($value !== null && ! $this->validAnswer($answer, $value)) {
-                throw ValidationException::withMessages(["{$key}.answer" => __('Enter a valid answer.')]);
-            }
-
-            $answer->update(['answer' => $value, 'notes' => $request->filled("{$key}.notes") ? $request->string("{$key}.notes")->toString() : null]);
-            $answer->attachPhotos($request->file("{$key}.photos", []));
-        }
-
-        $inspection->update(['notes' => $request->input('notes')]);
+        $data = $request->validate(Inspection::answerRules());
+        $inspection->saveAnswers($user, $data['answers'] ?? [], $data['notes'] ?? null, $request->file('answers') ? collect($request->file('answers'))->map(fn ($a) => $a['photos'] ?? [])->all() : []);
 
         if ($request->boolean('complete')) {
             $inspection->complete($user);
@@ -154,15 +123,5 @@ class InspectionController extends Controller
         $inspection->delete();
 
         return to_route('inspections.index');
-    }
-
-    private function validAnswer(InspectionAnswer $answer, string $value): bool
-    {
-        return match ($answer->response_type) {
-            'yes-no-na' => in_array($value, ['yes', 'no', 'na'], true),
-            'rating' => in_array($value, ['1', '2', '3', '4', '5'], true),
-            'number' => is_numeric($value),
-            default => true,
-        };
     }
 }

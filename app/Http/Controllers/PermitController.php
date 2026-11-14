@@ -106,17 +106,7 @@ class PermitController extends Controller
     public function storeGasTest(Request $request, Permit $permit): RedirectResponse
     {
         $this->open($request, $permit);
-
-        if ($permit->type !== 'confined-space') {
-            throw ValidationException::withMessages(['oxygen' => __('Gas tests are for confined-space permits.')]);
-        }
-
-        $reading = ['required', 'numeric', 'min:0', 'max:1000'];
-        $test = $permit->gasTests()->create([
-            ...$request->validate(['oxygen' => ['required', 'numeric', 'between:0,100'], 'lel' => $reading, 'h2s' => $reading, 'co' => $reading]),
-            'tested_by' => $this->user($request)->id,
-            'tested_at' => now(),
-        ]);
+        $test = $permit->recordGasTest($request->validate(Permit::gasTestRules()), $this->user($request));
 
         return $test->passed
             ? $this->done(__('Gas test passed.'))
@@ -126,15 +116,7 @@ class PermitController extends Controller
     public function storeIsolation(Request $request, Permit $permit): RedirectResponse
     {
         $this->open($request, $permit);
-        $permit->isolations()->create([
-            ...$request->validate([
-                'point' => ['required', 'string', 'max:255'],
-                'method' => ['required', 'string', 'max:255'],
-                'lock_no' => ['nullable', 'string', 'max:50'],
-            ]),
-            'isolated_by' => $this->user($request)->id,
-            'isolated_at' => now(),
-        ]);
+        $permit->addIsolation($request->validate(Permit::isolationRules()), $this->user($request));
 
         return $this->done(__('Isolation recorded.'));
     }
@@ -142,8 +124,7 @@ class PermitController extends Controller
     public function removeIsolation(Request $request, Permit $permit, PermitIsolation $isolation): RedirectResponse
     {
         $this->open($request, $permit);
-        abort_unless($isolation->permit_id === $permit->id && $isolation->removed_at === null, 404);
-        $isolation->update(['removed_by' => $this->user($request)->id, 'removed_at' => now()]);
+        $permit->removeIsolation($isolation, $this->user($request));
 
         return $this->done(__('Isolation removed.'));
     }
@@ -241,9 +222,6 @@ class PermitController extends Controller
     private function open(Request $request, Permit $permit): void
     {
         abort_unless($permit->isVisibleTo($this->user($request)), 404);
-
-        if (! $permit->isOpen()) {
-            throw ValidationException::withMessages(['status' => __('This permit is :status.', ['status' => $permit->status])]);
-        }
+        $permit->ensureOpen();
     }
 }

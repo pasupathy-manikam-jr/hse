@@ -6,6 +6,7 @@ use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasCreator;
 use App\Models\Concerns\HasSignatures;
 use App\Models\Concerns\VisibleBySite;
+use App\Notifications\HseAlert;
 use App\Support\Sequence;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection;
@@ -14,7 +15,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Permission;
 
 /**
  * A permit to work for high-risk work at one site, for at most one shift.
@@ -136,6 +139,22 @@ class Permit extends Model
             $permit->number = Sequence::next('PTW');
             $permit->status = 'requested';
         });
+
+        // The permit issuers who could approve it: at its site or across all sites, not the requester.
+        static::created(function (self $permit) {
+            if (! Permission::query()->where('name', 'approve-permits')->exists()) {
+                return;
+            }
+
+            User::permission('approve-permits')->whereKeyNot((int) $permit->created_by)
+                ->where(fn ($q) => $q->whereNull('site_id')->orWhere('site_id', $permit->site_id))->get()
+                ->each(fn (User $issuer) => $issuer->notify(new HseAlert(
+                    __('Permit :number to approve', ['number' => $permit->number]),
+                    Str::limit($permit->description, 200),
+                    ['type' => 'permit', 'id' => $permit->id],
+                    route('permits.show', $permit),
+                )));
+        });
     }
 
     /**
@@ -229,6 +248,68 @@ class Permit extends Model
     public function isOpen(): bool
     {
         return ! in_array($this->status, ['closed', 'cancelled'], true);
+    }
+
+    /**
+     * Record gas readings (confined space only) for the open permit; pass or fail is worked out on save.
+     *
+     * @param  array{oxygen: float|int|string, lel: float|int|string, h2s: float|int|string, co: float|int|string}  $readings
+     */
+    public function recordGasTest(array $readings, User $by): PermitGasTest
+    {
+        $this->ensureOpen();
+
+        if ($this->type !== 'confined-space') {
+            throw ValidationException::withMessages(['oxygen' => __('Gas tests are for confined-space permits.')]);
+        }
+
+        return $this->gasTests()->create([...$readings, 'tested_by' => $by->id, 'tested_at' => now()]);
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public static function gasTestRules(): array
+    {
+        $reading = ['required', 'numeric', 'min:0', 'max:1000'];
+
+        return ['oxygen' => ['required', 'numeric', 'between:0,100'], 'lel' => $reading, 'h2s' => $reading, 'co' => $reading];
+    }
+
+    /**
+     * @param  array{point: string, method: string, lock_no?: string|null}  $isolation
+     */
+    public function addIsolation(array $isolation, User $by): PermitIsolation
+    {
+        $this->ensureOpen();
+
+        return $this->isolations()->create([...$isolation, 'isolated_by' => $by->id, 'isolated_at' => now()]);
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public static function isolationRules(): array
+    {
+        return [
+            'point' => ['required', 'string', 'max:255'],
+            'method' => ['required', 'string', 'max:255'],
+            'lock_no' => ['nullable', 'string', 'max:50'],
+        ];
+    }
+
+    public function removeIsolation(PermitIsolation $isolation, User $by): void
+    {
+        $this->ensureOpen();
+        abort_unless($isolation->permit_id === $this->id && $isolation->removed_at === null, 404);
+        $isolation->update(['removed_by' => $by->id, 'removed_at' => now()]);
+    }
+
+    public function ensureOpen(): void
+    {
+        if (! $this->isOpen()) {
+            throw ValidationException::withMessages(['status' => __('This permit is :status.', ['status' => $this->status])]);
+        }
     }
 
     /**

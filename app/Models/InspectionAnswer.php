@@ -67,6 +67,19 @@ class InspectionAnswer extends Model
     /**
      * Pass (true), fail (false), or neither (null: unanswered, N/A, or free text).
      */
+    /**
+     * Whether the value is a valid answer to this question.
+     */
+    public function accepts(string $value): bool
+    {
+        return match ($this->response_type) {
+            'yes-no-na' => in_array($value, ['yes', 'no', 'na'], true),
+            'rating' => in_array($value, ['1', '2', '3', '4', '5'], true),
+            'number' => is_numeric($value),
+            default => true,
+        };
+    }
+
     public function evaluate(): ?bool
     {
         if (blank($this->answer)) {

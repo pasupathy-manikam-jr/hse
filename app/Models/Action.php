@@ -5,12 +5,14 @@ namespace App\Models;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\HasCreator;
 use App\Models\Concerns\VisibleBySite;
+use App\Notifications\HseAlert;
 use App\Support\Sequence;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -62,6 +64,29 @@ class Action extends Model
             $action->number = Sequence::next('ACT');
             $action->status = 'open';
         });
+
+        // Tell the owner, unless they raised it for themselves.
+        static::created(function (self $action) {
+            if ($action->owner_id !== auth()->id()) {
+                $action->notifyOwner(__('Action :number assigned to you', ['number' => $action->number]), $action->description);
+            }
+        });
+    }
+
+    /**
+     * The actions a person may see: the whole register at their sites with manage-actions,
+     * otherwise only their own.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeListedFor(Builder $query, User $user): void
+    {
+        $user->can('manage-actions') ? $query->visibleTo($user) : $query->where('owner_id', $user->id);
+    }
+
+    private function notifyOwner(string $title, string $body): void
+    {
+        User::query()->find($this->owner_id)?->notify(new HseAlert($title, Str::limit($body, 200), ['type' => 'action', 'id' => $this->id], route('actions.index')));
     }
 
     /**
@@ -140,5 +165,9 @@ class Action extends Model
             'verified' => ['verified_by' => $by->id, 'verified_at' => now()],
             'open' => ['rejection_reason' => $notes, 'done_at' => null],
         })->forceFill(['status' => $status])->save();
+
+        if ($status === 'open') {
+            $this->notifyOwner(__('Action :number sent back', ['number' => $this->number]), (string) $notes);
+        }
     }
 }
