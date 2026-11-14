@@ -6,19 +6,21 @@ An open-source HSE (health, safety and environment) management system for sites 
 
     observation / near miss → incident → investigation (5-Why) → corrective action (verified by someone else) → risk register update → toolbox talk / training
 
-No open-source tool covers this. The "awesome EHS" lists on GitHub are mostly calculators and PPE-detection CV demos. The full suites (EcoOnline, Intelex, Evotix, Enablon, Cority, SafetyCulture) are all commercial.
+No open-source tool covers this. The "awesome EHS" lists on GitHub are mostly calculators and PPE-detection CV demos; the full EHS suites are all commercial.
 
-## What we borrow, and from where
+## Design choices
 
-| Source                   | Idea we take                                                                                      | What we leave out                        |
-| ------------------------ | ------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| EcoOnline / SafetyQube   | One mobile-first "Report" button for incidents, near misses and observations; anonymous reporting | Chemical/SDS library (phase 6, optional) |
-| Evotix                   | Control of work: permit-to-work + LOTO isolations + shift handover in one module                  | No-code form builder                     |
-| SafetyCulture (iAuditor) | Inspection checklists from templates; a failed item raises an action on the spot                  | Sensor/IoT integrations                  |
-| Intelex / EHS Insight    | OSHA 300/300A/301 log generated from incidents; LTIFR/TRIR on the dashboard                       | Sustainability/ESG reporting             |
-| SDS Manager EHS          | Actions need independent verification (closer ≠ owner); append-only audit trail                   | —                                        |
-| Cority                   | Worker training/competency matrix with expiry blocks permit issue                                 | Occupational health/exposure monitoring  |
-| quality-ms (ours)        | The whole phase-0 foundation, CAPA workflow, audits, document control                             | QMS-only modules (certificates, gauges)  |
+Common good practice in EHS systems that we follow, and what we leave out:
+
+| Area                        | What we do                                                                                        | What we leave out                        |
+| --------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Reporting                   | One mobile-first "Report" button for incidents, near misses and observations; anonymous reporting | Chemical/SDS library (phase 6, optional) |
+| Control of work             | Permit-to-work + LOTO isolations + shift handover in one module                                   | No-code form builder                     |
+| Inspections                 | Checklists from templates; a failed item raises an action on the spot                             | Sensor/IoT integrations                  |
+| Injury records              | OSHA 300/300A/301 log generated from incidents; LTIFR/TRIR on the dashboard                       | Sustainability/ESG reporting             |
+| Corrective actions          | Independent verification (closer ≠ owner); append-only audit trail                                | —                                        |
+| Training                    | Competency matrix; an expired ticket blocks permit issue                                          | Occupational health/exposure monitoring  |
+| Foundation (our quality-ms) | The whole phase-0 foundation, CAPA workflow, audits, document control                             | QMS-only modules (certificates, gauges)  |
 
 ## Stack: latest Laravel + React starter kit
 
@@ -72,7 +74,7 @@ No open-source tool covers this. The "awesome EHS" lists on GitHub are mostly ca
 
 - `checklist_templates` + `checklist_items` (question, response type `yes-no-na | rating | number | text`, failing answer, critical flag).
 - `inspections`: template (pinned revision), site/area, inspector, date, `inspection_answers` with photos. Score % computed.
-- **Rule:** a failing answer raises a draft action linked to that answer, the SafetyCulture pattern.
+- **Rule:** a failing answer raises a draft action linked to that answer.
 - Seed templates: daily site walk, scaffolding, fire extinguisher, PPE, housekeeping, vehicle pre-use.
 - ISO 45001 internal audit: port quality-ms `QualityAudit` + `AuditFinding` with the clause list swapped to ISO 45001 §4–§10.
 
