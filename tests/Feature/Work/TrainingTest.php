@@ -35,11 +35,12 @@ test('recording training works out the expiry from the validity and keeps the ce
 
 test('the matrix shows each person\'s latest record per competency', function () {
     $competency = Competency::create(['name' => 'First aid', 'validity_months' => 36]);
-    $person = User::factory()->create(['name' => 'Ali']);
+    // A name no factory user can contain, so the search finds only this person.
+    $person = User::factory()->create(['name' => 'Qzx Holder']);
     UserCompetency::create(['user_id' => $person->id, 'competency_id' => $competency->id, 'issued_on' => '2020-01-01', 'expires_on' => '2023-01-01']);
     UserCompetency::create(['user_id' => $person->id, 'competency_id' => $competency->id, 'issued_on' => '2025-01-01', 'expires_on' => '2028-01-01']);
 
-    $this->actingAs($this->userWithRole('auditor'))->get(route('competencies.index', ['search' => 'Ali']))
+    $this->actingAs($this->userWithRole('auditor'))->get(route('competencies.index', ['search' => 'Qzx']))
         ->assertInertia(fn (Assert $page) => $page->component('competencies/index')
             ->has('people', 1)
             ->has('people.0.records', 1)
