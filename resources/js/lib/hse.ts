@@ -189,6 +189,33 @@ export const OBSERVATION_TOPICS = [
     { value: 'other', label: 'Other' },
 ] as const;
 
+/** HealthExam::OUTCOMES, both hazards. */
+export const HEALTH_OUTCOMES = [
+    { value: 'normal', label: 'Normal' },
+    { value: 'temporary-sts', label: 'Temporary threshold shift (retest)' },
+    { value: 'permanent-sts', label: 'Permanent threshold shift' },
+    { value: 'hearing-impairment', label: 'Hearing impairment' },
+    { value: 'nihl', label: 'Noise-induced hearing loss' },
+    { value: 'fit', label: 'Fit' },
+    { value: 'fit-with-restrictions', label: 'Fit with restrictions' },
+    { value: 'unfit', label: 'Unfit: removed from exposure' },
+    { value: 'occupational-disease', label: 'Occupational disease' },
+] as const;
+
+/** HealthExam::TYPES. */
+export const EXAM_TYPES = [
+    { value: 'baseline', label: 'Baseline' },
+    { value: 'periodic', label: 'Periodic' },
+    { value: 'retest', label: 'Retest' },
+    { value: 'exit', label: 'Exit' },
+] as const;
+
+/** HealthProgramme::HAZARDS. */
+export const HEALTH_HAZARDS = [
+    { value: 'noise', label: 'Noise' },
+    { value: 'chemical', label: 'Chemical' },
+] as const;
+
 /** GapAnalysisItem::RATINGS. */
 export const GAP_RATINGS = [
     { value: 'conforms', label: 'Conforms' },

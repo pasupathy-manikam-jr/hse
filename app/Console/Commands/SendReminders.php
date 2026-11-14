@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Action;
 use App\Models\Equipment;
+use App\Models\HealthProgramme;
 use App\Models\Incident;
 use App\Models\Permit;
 use App\Models\User;
@@ -76,6 +77,15 @@ class SendReminders extends Command
 
                 foreach ($editors->filter(fn (User $u) => $u->site_id === null || $u->site_id === $incident->site_id) as $editor) {
                     $digests[$editor->id][__('Report to DOSH')][] = $line;
+                }
+            }
+        }
+
+        // Health surveillance, to the HSE managers who can see each site.
+        if (Permission::query()->where('name', 'manage-health')->exists()) {
+            foreach (User::permission('manage-health')->get() as $manager) {
+                foreach (HealthProgramme::todo(HealthProgramme::query()->visibleTo($manager)) as $line) {
+                    $digests[$manager->id][__('Health surveillance')][] = $line;
                 }
             }
         }

@@ -6,6 +6,7 @@ import {
     CalendarClock,
     Clock,
     FileClock,
+    HeartPulse,
     KeyRound,
     ListChecks,
     Repeat,
@@ -32,6 +33,7 @@ import actionRoutes from '@/routes/actions';
 import dashboardRoutes from '@/routes/dashboard';
 import documentRoutes from '@/routes/documents';
 import handoverRoutes from '@/routes/handovers';
+import healthRoutes from '@/routes/health';
 import incidentRoutes from '@/routes/incidents';
 import observationRoutes from '@/routes/observations';
 import permitRoutes from '@/routes/permits';
@@ -116,6 +118,11 @@ const TASKS: Record<
         label: 'Shift handovers to acknowledge',
         icon: Repeat,
         href: () => handoverRoutes.index.url(),
+    },
+    health_to_do: {
+        label: 'Health surveillance to do',
+        icon: HeartPulse,
+        href: () => healthRoutes.index.url(),
     },
     dosh_to_send: {
         label: 'Incidents to report to DOSH',

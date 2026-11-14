@@ -34,6 +34,8 @@ class RolesSeeder extends Seeder
         'chemicals' => ['manage', 'create', 'edit', 'delete'],
         'equipment' => ['manage', 'create', 'edit', 'delete'],
         'reports' => ['manage'],
+        // Medical results: HSE managers only. Workers see their own without a permission.
+        'health' => ['manage', 'edit'],
         // Everyone sees and completes the actions they own; these cover the whole register.
         'actions' => ['manage', 'create', 'verify'],
     ];
@@ -61,6 +63,7 @@ class RolesSeeder extends Seeder
             'manage-environment', 'edit-environment',
             'manage-chemicals', 'create-chemicals', 'edit-chemicals', 'delete-chemicals',
             'manage-equipment', 'create-equipment', 'edit-equipment', 'delete-equipment', 'manage-reports',
+            'manage-health', 'edit-health',
             'manage-actions', 'create-actions', 'verify-actions',
         ],
         'supervisor' => [

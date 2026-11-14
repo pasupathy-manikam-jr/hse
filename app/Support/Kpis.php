@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Action;
 use App\Models\Document;
+use App\Models\HealthProgramme;
 use App\Models\Incident;
 use App\Models\IncidentPerson;
 use App\Models\Inspection;
@@ -173,6 +174,7 @@ class Kpis
             'documents_to_read' => $u->readings()->where('status', 'effective')->wherePivotNull('acknowledged_at')->count(),
             'documents_to_review' => Document::query()->where('owner_id', $u->id)->dueForReview()->count(),
             'handovers_to_acknowledge' => ShiftHandover::query()->where('to_user_id', $u->id)->whereNull('acknowledged_at')->count(),
+            'health_to_do' => $u->can('manage-health') ? count(HealthProgramme::todo(HealthProgramme::query()->visibleTo($u))) : 0,
             'dosh_to_send' => $u->can('edit-incidents') ? Incident::owingDosh(Incident::query()->visibleTo($u))->count() : 0,
         ]);
     }

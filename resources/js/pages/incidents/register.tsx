@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Printer } from 'lucide-react';
+import { ArrowLeft, Printer } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { SelectField } from '@/components/select-field';
@@ -103,9 +103,16 @@ export default function Jkkp8Register({
                         title="JKKP 8 register"
                         description="The register of accidents, dangerous occurrences, occupational poisonings and diseases (NADOPOD 2004). Send the year's summary to DOSH HQ by 31 January and keep it for 5 years."
                         action={
-                            <Button onClick={() => window.print()}>
-                                <Printer /> {t('Print')}
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                                <Button variant="outline" asChild>
+                                    <Link href={incidentRoutes.index()}>
+                                        <ArrowLeft /> {t('Back')}
+                                    </Link>
+                                </Button>
+                                <Button onClick={() => window.print()}>
+                                    <Printer /> {t('Print')}
+                                </Button>
+                            </div>
                         }
                     />
                 </div>

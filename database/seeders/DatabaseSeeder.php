@@ -9,7 +9,10 @@ use App\Models\Competency;
 use App\Models\Contractor;
 use App\Models\Document;
 use App\Models\Equipment;
+use App\Models\ExposureReading;
 use App\Models\GapAnalysis;
+use App\Models\HealthExam;
+use App\Models\HealthProgramme;
 use App\Models\Incident;
 use App\Models\Inspection;
 use App\Models\InternalAudit;
@@ -23,6 +26,7 @@ use App\Models\SiteMetric;
 use App\Models\ToolboxTalk;
 use App\Models\User;
 use App\Models\UserCompetency;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -94,6 +98,7 @@ class DatabaseSeeder extends Seeder
         $this->gapAnalyses($tower, (int) Site::query()->where('code', 'SHA-PLT')->value('id'));
         $this->reportingCulture($tower);
         $this->doshNotifications($tower, (int) Site::query()->where('code', 'SHA-PLT')->value('id'));
+        $this->healthSurveillance($tower);
     }
 
     /**
@@ -308,6 +313,49 @@ class DatabaseSeeder extends Seeder
             'occurred_at' => now()->subDay()->setTime(14, 20),
         ]);
         $crane->recordDoshNotice($user('hse-manager'), now()->subDay()->setTime(15, 5), 'Phoned JKKP Wilayah Persekutuan KL, duty officer');
+        auth()->forgetUser();
+    }
+
+    /**
+     * Health surveillance at the tower: noise from breaking and cutting (one audiogram overdue, a
+     * temporary shift to retest, a permanent shift to notify to DOSH) and silica, a USECHH Schedule
+     * II chemical (monitoring overdue).
+     */
+    private function healthSurveillance(int $towerId): void
+    {
+        if (HealthProgramme::query()->exists()) {
+            return;
+        }
+
+        $user = fn (string $role) => User::query()->where('email', "{$role}@example.com")->firstOrFail();
+        $exam = function (HealthProgramme $programme, string $role, string $type, CarbonInterface $on, string $outcome, ?string $notes = null, bool $informed = true) use ($user): void {
+            $exam = new HealthExam(['user_id' => $user($role)->id, 'type' => $type, 'examined_on' => $on->toDateString(),
+                'provider' => $programme->hazard === 'noise' ? 'Klinik Audiometri Bangsar (approved ATC)' : 'Dr Lim Wei Ming, OHD', 'outcome' => $outcome, 'notes' => $notes]);
+            $exam->programme()->associate($programme);
+            $exam->attachUpload(UploadedFile::fake()->create(Str::slug("{$programme->hazard}-{$role}-{$on->toDateString()}").'.pdf', 20, 'application/pdf'));
+            $exam->forceFill(['informed_on' => $informed ? $on->addDays(20)->toDateString() : null])->save();
+        };
+
+        auth()->setUser($user('hse-manager'));
+        $noise = HealthProgramme::create(['site_id' => $towerId, 'name' => 'Noise: concrete breaking and cutting', 'hazard' => 'noise',
+            'exam_interval_months' => 12, 'monitoring_interval_months' => 60, 'exposure_limit' => 85, 'unit' => 'dB(A)']);
+        $noise->members()->create(['user_id' => $user('worker')->id, 'started_on' => now()->subMonths(14)->toDateString()]);
+        $noise->members()->create(['user_id' => $user('supervisor')->id, 'started_on' => now()->subYears(2)->toDateString()]);
+        $noise->members()->create(['user_id' => $user('permit-issuer')->id, 'started_on' => now()->subYears(3)->toDateString()]);
+        $exam($noise, 'worker', 'baseline', now()->subMonths(13), 'normal');
+        $exam($noise, 'supervisor', 'baseline', now()->subMonths(23), 'normal');
+        $exam($noise, 'supervisor', 'periodic', now()->subMonths(2), 'temporary-sts', 'Shift at 4 kHz, right ear. Retest after 14 hours of quiet.');
+        $exam($noise, 'permit-issuer', 'periodic', now()->subDays(10), 'permanent-sts', 'Permanent shift of 12 dB at 2-4 kHz, both ears. Refitted with earmuffs.', informed: false);
+        $reading = new ExposureReading(['measured_on' => now()->subYears(2)->toDateString(), 'value' => 92.4, 'user_id' => $user('worker')->id, 'assessor' => 'Encik Hafiz, registered noise risk assessor',
+            'notes' => 'Breaker operator, 8-hour dose. Above the limit: hearing protection zone marked.']);
+        $reading->programme()->associate($noise)->save();
+
+        $silica = HealthProgramme::create(['site_id' => $towerId, 'name' => 'Silica: concrete cutting and grinding', 'hazard' => 'chemical', 'schedule_ii' => true,
+            'exam_interval_months' => 12, 'monitoring_interval_months' => 6, 'exposure_limit' => 0.1, 'unit' => 'mg/m³']);
+        $silica->members()->create(['user_id' => $user('worker')->id, 'started_on' => now()->subYear()->toDateString()]);
+        $exam($silica, 'worker', 'baseline', now()->subMonths(11), 'fit', 'Normal spirometry and chest X-ray.');
+        $reading = new ExposureReading(['measured_on' => now()->subMonths(7)->toDateString(), 'value' => 0.04, 'user_id' => $user('worker')->id, 'assessor' => 'Puan Aida, hygiene technician']);
+        $reading->programme()->associate($silica)->save();
         auth()->forgetUser();
     }
 

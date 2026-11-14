@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Check, Printer } from 'lucide-react';
+import { ArrowLeft, Check, Printer } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { SelectField } from '@/components/select-field';
 import { Button } from '@/components/ui/button';
@@ -102,9 +102,16 @@ export default function InjuryLog({
                         title="Injury log"
                         description="OSHA Form 300 and the 300A annual summary: one line per recordable injury or illness."
                         action={
-                            <Button onClick={() => window.print()}>
-                                <Printer /> {t('Print')}
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                                <Button variant="outline" asChild>
+                                    <Link href={incidentRoutes.index()}>
+                                        <ArrowLeft /> {t('Back')}
+                                    </Link>
+                                </Button>
+                                <Button onClick={() => window.print()}>
+                                    <Printer /> {t('Print')}
+                                </Button>
+                            </div>
                         }
                     />
                 </div>

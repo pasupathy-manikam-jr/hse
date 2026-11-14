@@ -18,7 +18,7 @@ The sidebar groups the work:
 - **Report**: report an observation, observations, incidents and the actions list.
 - **Control**: risk assessments, inspections, audits, gap analysis, documents, permits to work, shift handovers and the equipment register.
 - **Environment**: the environmental log and the chemical register.
-- **People**: the training matrix and toolbox talks.
+- **People**: the training matrix, toolbox talks, health surveillance and your own health records.
 - **Setup**: sites, contractors, checklists and users.
 
 You only see the pages your role allows. If you open a link you cannot use, you get a page saying so, with a way back to the dashboard.
@@ -173,6 +173,24 @@ The **Training matrix** shows each person against each competency: green valid, 
 
 **Toolbox talks → Record talk**: the topic, date, who gave it, the key points, everyone who attended and, optionally, the incident whose lessons were shared.
 
+## Health surveillance
+
+**Health surveillance** (People, HSE managers only) follows the workers exposed to noise or to hazardous chemicals. Medical results are seen only by HSE managers and by the worker themself, under **My health records** (everyone has this page).
+
+**New programme**: one per exposure at a site, for example "Noise: concrete breaking" or "Silica: cutting and grinding". Choosing the exposure fills in the legal defaults, which you can change:
+
+- **Noise** (Noise Exposure Regulations 2019 and DOSH's code of practice): the limit is 85 dB(A) (action level 82). A **baseline audiogram is due within 3 months** of starting noisy work, then **every year**, at an approved audiometric test centre. The noise risk assessment is redone within 5 years.
+- **Chemical** (USECHH Regulations 2000): tick **Schedule II** for chemicals such as free crystalline silica, lead, benzene, isocyanates, mineral oil, pesticides or asbestos. Their workers need **medical surveillance by an occupational health doctor at least every 12 months**, and exposure monitoring **at least every 6 months** by a hygiene technician.
+
+**Add worker** with the date their exposure began. Each worker shows what is next and when: baseline, periodic or retest, flagged when due within 30 days or overdue. **Record result** for the examination, with the report.
+
+- A **temporary threshold shift** asks for a **retest within 3 months**.
+- A **permanent threshold shift, hearing impairment or noise-induced hearing loss**, or an **occupational disease**, must be **notified to DOSH within 7 days**: click **Notify DOSH** once done, with the reference. Hearing loss already present at a baseline taken within 3 months of starting is not notifiable.
+- **Unfit** removes the worker from the exposure (USECHH reg. 28) until a later result says otherwise.
+- Tell the worker their result **within 21 days**, and record when under **Worker told**.
+
+**Add reading** for exposure monitoring: the value, who wore the dosimeter (or an area reading), who measured it, and the report. A reading over the limit is flagged. When a worker no longer has the exposure, **End exposure**; their records stay. Records are never deleted: USECHH requires health records to be kept for 30 years.
+
 ## Internal audits
 
 **Audits → Plan audit**: the site, title, lead auditor, date and the ISO 45001 clauses in scope. **Start audit**, then **Add finding** for each: a major or minor nonconformity, an observation, or an opportunity for improvement. A nonconformity needs an action owner and due date, and raises a corrective action. **Complete** the audit with a summary.
@@ -220,6 +238,6 @@ On an effective revision, **Ask people to read** it. They find it under **My rea
 
 ## Emails
 
-Each morning at 07:00 everyone gets one email listing what needs them: actions due or overdue, their competencies expiring within 30 days, permits they requested that are past their end time but still open, and equipment they are responsible for whose inspection is due within 30 days or overdue. Nothing to report means no email.
+Each morning at 07:00 everyone gets one email listing what needs them: actions due or overdue, their competencies expiring within 30 days, permits they requested that are past their end time but still open, equipment they are responsible for whose inspection is due within 30 days or overdue, incidents still to report to DOSH, and (for HSE managers) health surveillance to do. Nothing to report means no email.
 
 Every Monday at 07:30, each site's weekly report goes to the addresses on its list (see **Weekly report**).

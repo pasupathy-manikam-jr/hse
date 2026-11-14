@@ -9,6 +9,7 @@ import {
     Gauge,
     FlaskConical,
     GraduationCap,
+    HeartPulse,
     KeyRound,
     Leaf,
     HardHat,
@@ -49,6 +50,7 @@ import environment from '@/routes/environment';
 import equipment from '@/routes/equipment';
 import gapAnalyses from '@/routes/gap-analyses';
 import handovers from '@/routes/handovers';
+import health from '@/routes/health';
 import incidents from '@/routes/incidents';
 import inspections from '@/routes/inspections';
 import observations from '@/routes/observations';
@@ -190,6 +192,17 @@ const navGroups: { label: string; items: NavItem[] }[] = [
                 href: toolboxTalks.index(),
                 icon: MessagesSquare,
                 permission: 'manage-toolbox-talks',
+            },
+            {
+                title: 'Health surveillance',
+                href: health.index(),
+                icon: HeartPulse,
+                permission: 'manage-health',
+            },
+            {
+                title: 'My health records',
+                href: health.mine(),
+                icon: HeartPulse,
             },
         ],
     },
