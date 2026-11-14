@@ -65,7 +65,7 @@ class Kpis
             'ltifr' => $hours > 0 ? round($lti * self::LTIFR_BASE / $hours, 2) : null,
             'trir' => $hours > 0 ? round($recordable * self::TRIR_BASE / $hours, 2) : null,
             'pyramid' => [
-                'near-miss' => Observation::query()->whereIn('site_id', $this->siteIds)->where('type', 'near-miss')
+                'near-miss' => Observation::query()->counted()->whereIn('site_id', $this->siteIds)->where('type', 'near-miss')
                     ->whereBetween('observed_at', [$this->from, $this->to->endOfDay()])->count(),
                 ...collect(['first-aid', 'medical', 'restricted', 'lost-time', 'fatality'])
                     ->mapWithKeys(fn (string $t) => [$t => $injuries->filter(fn (?string $x) => $x === $t)->count()])->all(),
@@ -80,11 +80,22 @@ class Kpis
      */
     public function daysSinceLti(): array
     {
-        $last = Incident::query()->whereIn('site_id', $this->siteIds)
+        return self::daysSinceLtiAt($this->siteIds);
+    }
+
+    /**
+     * The same, for given sites (the weekly report email has no signed-in user).
+     *
+     * @param  list<int>  $siteIds
+     * @return list<array{site: string, days: int|null}>
+     */
+    public static function daysSinceLtiAt(array $siteIds): array
+    {
+        $last = Incident::query()->whereIn('site_id', $siteIds)
             ->whereHas('people', fn (Builder $q) => $q->where('role', 'injured')->whereIn('treatment', self::LOST_TIME))
             ->selectRaw('site_id, max(occurred_at) as last_at')->groupBy('site_id')->pluck('last_at', 'site_id');
 
-        return array_values(Site::query()->whereKey($this->siteIds)->orderBy('code')->get(['id', 'code'])
+        return array_values(Site::query()->whereKey($siteIds)->orderBy('code')->get(['id', 'code'])
             ->map(fn (Site $s) => [
                 'site' => $s->code,
                 'days' => isset($last[$s->id]) ? (int) CarbonImmutable::parse($last[$s->id])->startOfDay()->diffInDays(today()) : null,
@@ -99,7 +110,7 @@ class Kpis
         $completed = Inspection::query()->whereIn('site_id', $this->siteIds)->where('status', 'completed')
             ->whereBetween('completed_at', [$this->from, $this->to->endOfDay()]);
         $start = $this->to->startOfMonth()->subMonths(5);
-        $observed = Observation::query()->whereIn('site_id', $this->siteIds)
+        $observed = Observation::query()->counted()->whereIn('site_id', $this->siteIds)
             ->where('observed_at', '>=', $start)->pluck('observed_at')
             ->countBy(fn ($at) => CarbonImmutable::parse($at)->format('Y-m'));
 
@@ -114,6 +125,31 @@ class Kpis
                 ->whereBetween('held_on', [$this->from->toDateString(), $this->to->toDateString()])->count(),
             'actions_open' => Action::query()->whereIn('site_id', $this->siteIds)->where('status', '!=', 'verified')->count(),
             'actions_overdue' => Action::query()->whereIn('site_id', $this->siteIds)->overdue()->count(),
+        ];
+    }
+
+    /**
+     * Reporting culture over the period: what observations are about, who reports most
+     * (named reports only), and each site's latest observation of the month.
+     *
+     * @return array{topics: array<array-key, int>, top_reporters: list<array{name: string, count: int}>, recognised: list<Observation>}
+     */
+    public function reporting(): array
+    {
+        $period = Observation::query()->counted()->whereIn('site_id', $this->siteIds)->whereBetween('observed_at', [$this->from, $this->to->endOfDay()]);
+
+        return [
+            'topics' => (clone $period)->whereNotNull('topic')->selectRaw('topic, count(*) as total')->groupBy('topic')
+                ->orderByDesc('total')->limit(6)->pluck('total', 'topic')->map(fn ($n) => (int) $n)->all(),
+            'top_reporters' => array_values((clone $period)->where('anonymous', false)->whereNotNull('reporter_id')
+                ->selectRaw('reporter_id, count(*) as total')->groupBy('reporter_id')->orderByDesc('total')->limit(5)
+                ->with('reporter:id,name')->get()
+                ->map(fn (Observation $o) => ['name' => (string) $o->reporter?->name, 'count' => (int) $o->getAttribute('total')])->all()),
+            'recognised' => array_values(Observation::query()->whereIn('site_id', $this->siteIds)
+                ->whereDate('recognised_for', '>=', CarbonImmutable::today()->startOfMonth()->subMonth())
+                ->with('site:id,code', 'reporter:id,name')->orderByDesc('recognised_for')->orderBy('site_id')
+                ->get(['id', 'number', 'site_id', 'reporter_id', 'type', 'description', 'recognised_for', 'recognition_note'])
+                ->unique('site_id')->all()),
         ];
     }
 

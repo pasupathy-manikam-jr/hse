@@ -9,6 +9,7 @@ import {
     ListChecks,
     Repeat,
     ShieldAlert,
+    Trophy,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
@@ -23,12 +24,14 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useCan } from '@/hooks/use-can';
 import { useFormat } from '@/hooks/use-format';
 import { useTranslation } from '@/hooks/use-translation';
+import { OBSERVATION_TOPICS, labelOf } from '@/lib/hse';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import actionRoutes from '@/routes/actions';
 import dashboardRoutes from '@/routes/dashboard';
 import documentRoutes from '@/routes/documents';
 import handoverRoutes from '@/routes/handovers';
+import observationRoutes from '@/routes/observations';
 import permitRoutes from '@/routes/permits';
 import riskRoutes from '@/routes/risk-assessments';
 
@@ -51,6 +54,20 @@ type Leading = {
 };
 
 type Site = { id: number; code: string; name: string };
+
+type Reporting = {
+    topics: Record<string, number>;
+    top_reporters: { name: string; count: number }[];
+    recognised: {
+        id: number;
+        number: string;
+        description: string;
+        recognised_for: string;
+        recognition_note: string | null;
+        site: { id: number; code: string };
+        reporter: { id: number; name: string } | null;
+    }[];
+};
 
 // The single series' bar colour (validated: light green-700, dark green-600).
 const BAR = 'bg-green-700 dark:bg-green-600';
@@ -165,6 +182,7 @@ export default function Dashboard({
     daysSinceLti,
     leading,
     tasks,
+    reporting,
     hours,
 }: {
     period: { key: '12m' | 'ytd'; from: string; to: string };
@@ -174,6 +192,7 @@ export default function Dashboard({
     daysSinceLti: { site: string; days: number | null }[];
     leading: Leading;
     tasks: Record<string, number>;
+    reporting: Reporting;
     hours: { id: number; site_id: number; month: string; hours: string }[];
 }) {
     const { t } = useTranslation();
@@ -197,6 +216,7 @@ export default function Dashboard({
             { preserveScroll: true, preserveState: true },
         );
     const pyramidMax = Math.max(1, ...Object.values(lagging.pyramid));
+    const topicMax = Math.max(1, ...Object.values(reporting.topics));
     const monthMax = Math.max(
         1,
         ...leading.observations_by_month.map((m) => m.count),
@@ -509,6 +529,163 @@ export default function Dashboard({
                                     : undefined
                             }
                         />
+                    </div>
+                </section>
+
+                <section
+                    aria-label={t('Reporting culture')}
+                    className="grid gap-3 lg:grid-cols-3"
+                >
+                    <div className="grid content-start gap-3 rounded-xl border p-5">
+                        <h2 className="flex items-center gap-2 font-medium">
+                            <Trophy className="size-4 text-amber-600" />
+                            {t('Observation of the month')}
+                        </h2>
+                        {reporting.recognised.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                {t(
+                                    'None chosen yet. Pick one from a good observation.',
+                                )}
+                            </p>
+                        ) : (
+                            <ul className="grid gap-3 text-sm">
+                                {reporting.recognised.map((r) => (
+                                    <li key={r.id} className="grid gap-1">
+                                        {can('manage-observations') ? (
+                                            <Link
+                                                href={observationRoutes.show(
+                                                    r.id,
+                                                )}
+                                                className="font-medium hover:underline"
+                                            >
+                                                {r.reporter?.name} ·{' '}
+                                                {r.site.code} ·{' '}
+                                                {monthLabel(
+                                                    r.recognised_for.slice(
+                                                        0,
+                                                        7,
+                                                    ),
+                                                )}
+                                            </Link>
+                                        ) : (
+                                            <span className="font-medium">
+                                                {r.reporter?.name} ·{' '}
+                                                {r.site.code} ·{' '}
+                                                {monthLabel(
+                                                    r.recognised_for.slice(
+                                                        0,
+                                                        7,
+                                                    ),
+                                                )}
+                                            </span>
+                                        )}
+                                        <span className="text-muted-foreground">
+                                            {r.recognition_note ??
+                                                r.description}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+
+                    <div className="grid content-start gap-3 rounded-xl border p-5">
+                        <h2 className="font-medium">
+                            {t('What observations are about')}
+                        </h2>
+                        {Object.keys(reporting.topics).length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                {t('No topics recorded in this period.')}
+                            </p>
+                        ) : (
+                            <ul className="grid gap-2" aria-hidden>
+                                {Object.entries(reporting.topics).map(
+                                    ([topic, count]) => (
+                                        <li
+                                            key={topic}
+                                            title={`${t(labelOf(OBSERVATION_TOPICS, topic))}: ${count}`}
+                                            className="grid grid-cols-[8rem_1fr_2rem] items-center gap-3 text-sm"
+                                        >
+                                            <span className="truncate text-muted-foreground">
+                                                {t(
+                                                    labelOf(
+                                                        OBSERVATION_TOPICS,
+                                                        topic,
+                                                    ),
+                                                )}
+                                            </span>
+                                            <span className="h-4">
+                                                <span
+                                                    className={cn(
+                                                        'block h-full rounded-e-[4px]',
+                                                        BAR,
+                                                    )}
+                                                    style={{
+                                                        width: `${Math.max(2, (100 * count) / topicMax)}%`,
+                                                    }}
+                                                />
+                                            </span>
+                                            <span className="text-end font-medium tabular-nums">
+                                                {count}
+                                            </span>
+                                        </li>
+                                    ),
+                                )}
+                            </ul>
+                        )}
+                        <table className="sr-only">
+                            <caption>{t('Observations by topic')}</caption>
+                            <tbody>
+                                {Object.entries(reporting.topics).map(
+                                    ([topic, count]) => (
+                                        <tr key={topic}>
+                                            <th scope="row">
+                                                {t(
+                                                    labelOf(
+                                                        OBSERVATION_TOPICS,
+                                                        topic,
+                                                    ),
+                                                )}
+                                            </th>
+                                            <td>{count}</td>
+                                        </tr>
+                                    ),
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="grid content-start gap-3 rounded-xl border p-5">
+                        <h2 className="font-medium">{t('Top reporters')}</h2>
+                        {reporting.top_reporters.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                {t('No named reports in this period.')}
+                            </p>
+                        ) : (
+                            <ol className="grid gap-2 text-sm">
+                                {reporting.top_reporters.map((r, n) => (
+                                    <li
+                                        key={r.name}
+                                        className="flex items-center justify-between gap-2"
+                                    >
+                                        <span>
+                                            <span className="me-2 text-muted-foreground tabular-nums">
+                                                {n + 1}.
+                                            </span>
+                                            {r.name}
+                                        </span>
+                                        <span className="font-medium tabular-nums">
+                                            {r.count}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ol>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                            {t(
+                                'Named observations in the period; anonymous and dismissed reports are not counted.',
+                            )}
+                        </p>
                     </div>
                 </section>
             </div>

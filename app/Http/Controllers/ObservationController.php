@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Action;
+use App\Models\Contractor;
 use App\Models\Observation;
 use App\Models\Site;
 use App\Models\User;
@@ -21,10 +22,11 @@ class ObservationController extends Controller
     {
         $user = $this->user($request);
         $query = Observation::query()->visibleTo($user)
-            ->with('site:id,code', 'area:id,name', 'reporter:id,name')
+            ->with('site:id,code', 'area:id,name', 'reporter:id,name', 'contractor:id,name')
             ->withCount('photos')
             ->when(in_array($request->input('type'), Observation::TYPES, true), fn (Builder $q) => $q->where('type', $request->input('type')))
             ->when(in_array($request->input('potential'), Observation::POTENTIALS, true), fn (Builder $q) => $q->where('potential', $request->input('potential')))
+            ->when(in_array($request->input('topic'), Observation::TOPICS, true), fn (Builder $q) => $q->where('topic', $request->input('topic')))
             ->when($request->filled('site_id'), fn (Builder $q) => $q->where('site_id', $request->integer('site_id')));
         $counts = TableQuery::tabs($query, 'status', Observation::STATUSES);
 
@@ -35,7 +37,7 @@ class ObservationController extends Controller
             ),
             'counts' => $counts,
             'sites' => Site::query()->availableTo($user)->get(['id', 'code as name']),
-            'filters' => TableQuery::filters($request, ['status', 'type', 'potential', 'site_id']),
+            'filters' => TableQuery::filters($request, ['status', 'type', 'potential', 'topic', 'site_id']),
         ]);
     }
 
@@ -68,6 +70,7 @@ class ObservationController extends Controller
             'site_id' => ['required', Rule::exists('sites', 'id')->where('active', true)->when($user->site_id !== null, fn ($rule) => $rule->where('id', $user->site_id))],
             'area_id' => ['nullable', Rule::exists('areas', 'id')->where('site_id', $request->integer('site_id'))],
             'type' => ['required', Rule::in(Observation::TYPES)],
+            'topic' => ['nullable', Rule::in(Observation::TOPICS)],
             'potential' => ['required', Rule::in(Observation::POTENTIALS)],
             'description' => ['required', 'string', 'max:5000'],
             'immediate_action' => ['nullable', 'string', 'max:5000'],
@@ -98,7 +101,7 @@ class ObservationController extends Controller
         $user = $this->user($request);
         abort_unless($observation->isVisibleTo($user), 404);
 
-        $observation->load('site:id,code,name', 'area:id,name', 'reporter:id,name', 'closer:id,name', 'photos:id,photoable_type,photoable_id', 'incident:id,observation_id,number',
+        $observation->load('site:id,code,name', 'area:id,name', 'reporter:id,name', 'closer:id,name', 'contractor:id,name', 'photos:id,photoable_type,photoable_id', 'incident:id,observation_id,number',
             'actions.owner:id,name', 'actions.verifier:id,name');
 
         return Inertia::render('observations/show', [
@@ -106,7 +109,41 @@ class ObservationController extends Controller
             // Anyone working at this site (or across all sites) can own an action.
             'owners' => User::query()->where(fn (Builder $q) => $q->whereNull('site_id')->orWhere('site_id', $observation->site_id))
                 ->orderBy('name')->get(['id', 'name']),
+            'contractors' => Contractor::query()->orderBy('name')->get(['id', 'name']),
         ]);
+    }
+
+    /**
+     * Set what the observation is about and the crew involved (supervisor's review).
+     */
+    public function review(Request $request, Observation $observation): RedirectResponse
+    {
+        abort_unless($observation->isVisibleTo($this->user($request)), 404);
+        $observation->update($request->validate([
+            'topic' => ['nullable', Rule::in(Observation::TOPICS)],
+            'contractor_id' => ['nullable', Rule::exists('contractors', 'id')],
+        ]));
+
+        return $this->done(__('Observation updated.'));
+    }
+
+    /**
+     * Not a valid report (a duplicate, not at this site, not a hazard): kept, but left out of counts.
+     */
+    public function dismiss(Request $request, Observation $observation): RedirectResponse
+    {
+        abort_unless($observation->isVisibleTo($this->user($request)), 404);
+        $observation->transitionTo('dismissed', $request->validate(['reason' => ['required', 'string', 'max:2000']])['reason']);
+
+        return $this->done(__('Observation dismissed.'));
+    }
+
+    public function recognise(Request $request, Observation $observation): RedirectResponse
+    {
+        abort_unless($observation->isVisibleTo($this->user($request)), 404);
+        $observation->recognise($request->validate(['note' => ['required', 'string', 'max:500']])['note']);
+
+        return $this->done(__(':number is the observation of the month.', ['number' => $observation->number]));
     }
 
     public function close(Request $request, Observation $observation): RedirectResponse

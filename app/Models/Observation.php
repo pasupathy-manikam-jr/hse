@@ -9,6 +9,7 @@ use App\Models\Concerns\VisibleBySite;
 use App\Models\Contracts\ActionSource;
 use App\Support\Sequence;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -16,7 +17,9 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * An observation from the field: unsafe act or condition, near miss, good practice or
- * environmental issue. Open → actioned (an action was raised) → closed.
+ * environmental issue. Open → actioned (an action was raised) → closed, or dismissed with a
+ * reason when it is not a valid report. A reporter's good observation can be chosen as the
+ * site's observation of the month.
  *
  * @property int $id
  * @property string $number
@@ -24,6 +27,8 @@ use Illuminate\Validation\ValidationException;
  * @property int $site_id
  * @property int|null $area_id
  * @property string $type
+ * @property string|null $topic
+ * @property int|null $contractor_id
  * @property string $potential
  * @property string $description
  * @property string|null $immediate_action
@@ -33,6 +38,9 @@ use Illuminate\Validation\ValidationException;
  * @property string|null $latitude
  * @property string|null $longitude
  * @property string $status
+ * @property string|null $status_reason
+ * @property CarbonImmutable|null $recognised_for
+ * @property string|null $recognition_note
  * @property int|null $closed_by
  * @property CarbonImmutable|null $closed_at
  * @property CarbonImmutable|null $created_at
@@ -46,15 +54,21 @@ class Observation extends Model implements ActionSource
 
     public const POTENTIALS = ['low', 'medium', 'high'];
 
-    public const STATUSES = ['open', 'actioned', 'closed'];
+    /** What the observation is about, for trends ("most reports are about PPE"). */
+    public const TOPICS = [
+        'ppe', 'housekeeping', 'work-at-height', 'lifting', 'mobile-plant', 'electrical', 'fire',
+        'hazardous-substances', 'manual-handling', 'tools', 'access', 'behaviour', 'environment', 'other',
+    ];
+
+    public const STATUSES = ['open', 'actioned', 'closed', 'dismissed'];
 
     /** @var array<string, list<string>> */
     public const TRANSITIONS = [
-        'open' => ['actioned', 'closed'],
+        'open' => ['actioned', 'closed', 'dismissed'],
         'actioned' => ['closed'],
     ];
 
-    protected $guarded = ['id', 'number', 'status', 'closed_by', 'closed_at'];
+    protected $guarded = ['id', 'number', 'status', 'status_reason', 'closed_by', 'closed_at', 'recognised_for', 'recognition_note'];
 
     protected static function booted(): void
     {
@@ -72,6 +86,7 @@ class Observation extends Model implements ActionSource
         return [
             'observed_at' => 'datetime',
             'closed_at' => 'datetime',
+            'recognised_for' => 'date:Y-m-d',
             'anonymous' => 'boolean',
         ];
     }
@@ -95,6 +110,26 @@ class Observation extends Model implements ActionSource
     public function area(): BelongsTo
     {
         return $this->belongsTo(Area::class);
+    }
+
+    /**
+     * Valid reports: everything except dismissed ones. Use for counts and trends.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeCounted(Builder $query): void
+    {
+        $query->where('status', '!=', 'dismissed');
+    }
+
+    /**
+     * The crew (contractor) involved.
+     *
+     * @return BelongsTo<Contractor, $this>
+     */
+    public function contractor(): BelongsTo
+    {
+        return $this->belongsTo(Contractor::class);
     }
 
     /**
@@ -135,10 +170,34 @@ class Observation extends Model implements ActionSource
         }
     }
 
-    public function transitionTo(string $status): void
+    /**
+     * Choose this as the site's observation of the month it was made in. One per site and month;
+     * a named reporter only, and not a dismissed report.
+     */
+    public function recognise(string $note): void
+    {
+        if ($this->reporter_id === null || $this->status === 'dismissed') {
+            throw ValidationException::withMessages(['status' => __('Only a valid report from a named person can be recognised.')]);
+        }
+
+        $month = $this->observed_at->startOfMonth()->toDateString();
+        $taken = self::query()->where('site_id', $this->site_id)->whereDate('recognised_for', $month)->whereKeyNot($this->id)->value('number');
+
+        if ($taken !== null) {
+            throw ValidationException::withMessages(['status' => __(':number is already the observation of the month.', ['number' => $taken])]);
+        }
+
+        $this->forceFill(['recognised_for' => $month, 'recognition_note' => $note])->save();
+    }
+
+    public function transitionTo(string $status, ?string $reason = null): void
     {
         if (! in_array($status, self::TRANSITIONS[$this->status] ?? [], true)) {
             throw ValidationException::withMessages(['status' => __('An :from observation cannot be marked :to.', ['from' => $this->status, 'to' => $status])]);
+        }
+
+        if ($status === 'dismissed' && (blank($reason) || $this->actions()->exists())) {
+            throw ValidationException::withMessages(['status' => __('Dismiss only a report with no actions, and say why.')]);
         }
 
         if ($status === 'closed' && $this->hasUnverifiedActions()) {
@@ -147,6 +206,7 @@ class Observation extends Model implements ActionSource
 
         $this->forceFill(match ($status) {
             'closed' => ['closed_by' => auth()->id(), 'closed_at' => now()],
+            'dismissed' => ['closed_by' => auth()->id(), 'closed_at' => now(), 'status_reason' => $reason, 'recognised_for' => null, 'recognition_note' => null],
             default => [],
         })->forceFill(['status' => $status])->save();
     }

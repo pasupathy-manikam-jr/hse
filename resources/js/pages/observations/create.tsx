@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useTranslation } from '@/hooks/use-translation';
-import { OBSERVATION_TYPES, POTENTIALS } from '@/lib/hse';
+import { OBSERVATION_TOPICS, OBSERVATION_TYPES, POTENTIALS } from '@/lib/hse';
 import { enqueue, flush, queued } from '@/lib/offline-queue';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -56,6 +56,7 @@ export default function ReportObservation({
     const [locationError, setLocationError] = useState<string | null>(null);
     const form = useForm({
         type: '',
+        topic: '',
         site_id: String(
             defaultSiteId ?? (sites.length === 1 ? sites[0].id : ''),
         ),
@@ -146,6 +147,7 @@ export default function ReportObservation({
         form.setData((data) => ({
             ...data,
             type: '',
+            topic: '',
             area_id: '',
             description: '',
             immediate_action: '',
@@ -334,6 +336,23 @@ export default function ReportObservation({
                         />
                         <InputError message={form.errors.observed_at} />
                     </div>
+                </div>
+
+                <div className="grid gap-2">
+                    <Label htmlFor="obs-topic">{t('What is it about?')}</Label>
+                    <SelectField
+                        id="obs-topic"
+                        value={form.data.topic}
+                        onChange={(e) => form.setData('topic', e.target.value)}
+                    >
+                        <option value="">{t('Not sure')}</option>
+                        {OBSERVATION_TOPICS.map((topic) => (
+                            <option key={topic.value} value={topic.value}>
+                                {t(topic.label)}
+                            </option>
+                        ))}
+                    </SelectField>
+                    <InputError message={form.errors.topic} />
                 </div>
 
                 <div className="grid gap-2">

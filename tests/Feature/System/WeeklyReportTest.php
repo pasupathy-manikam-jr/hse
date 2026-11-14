@@ -5,6 +5,8 @@ use App\Models\Incident;
 use App\Models\Observation;
 use App\Models\Site;
 use App\Models\User;
+use App\Notifications\WeeklySummary;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -43,4 +45,28 @@ test('a site user sees only their site, a bad week falls back to this week, and 
             ->where('observations', [])->has('sites', 1));
 
     $this->actingAs($this->userWithRole('worker'))->get(route('reports.weekly'))->assertForbidden();
+});
+
+test('each Monday the sites with recipients get last week\'s summary by email', function () {
+    Notification::fake();
+    $this->site->update(['report_recipients' => ['pm@example.com', 'hse@example.com']]);
+    Observation::create(['site_id' => $this->site->id, 'type' => 'near-miss', 'topic' => 'lifting', 'potential' => 'low', 'description' => 'x', 'observed_at' => now()->subWeek()]);
+
+    $this->artisan('hse:weekly-report')->assertSuccessful();
+
+    Notification::assertSentOnDemand(WeeklySummary::class, fn (WeeklySummary $n, array $channels, object $notifiable) => $n->site->is($this->site)
+        && $notifiable->routes['mail'] === ['pm@example.com', 'hse@example.com']
+        && $n->report['week']['from'] === today()->subWeek()->startOfWeek()->toDateString()
+        && $n->report['topics']->all() === ['lifting' => 1]);
+    Notification::assertCount(1);
+});
+
+test('report recipients are a list of valid addresses on the site', function () {
+    $this->actingAs($this->userWithRole('hse-manager'));
+
+    $this->put(route('sites.update', $this->site), ['code' => 'KL', 'name' => 'Tower', 'report_recipients' => ['pm@example.com', 'not-an-email']])
+        ->assertSessionHasErrors('report_recipients.1');
+    $this->put(route('sites.update', $this->site), ['code' => 'KL', 'name' => 'Tower', 'report_recipients' => ['pm@example.com']])->assertSessionHasNoErrors();
+
+    expect($this->site->fresh()->report_recipients)->toBe(['pm@example.com']);
 });

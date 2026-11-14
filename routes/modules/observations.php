@@ -17,6 +17,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', 'index')->name('index');
             Route::get('{observation}', 'show')->name('show');
             Route::put('{observation}/close', 'close')->middleware('permission:edit-observations')->name('close');
+            Route::put('{observation}/review', 'review')->middleware('permission:edit-observations')->name('review');
+            Route::put('{observation}/dismiss', 'dismiss')->middleware('permission:edit-observations')->name('dismiss');
+            Route::put('{observation}/recognise', 'recognise')->middleware('permission:recognise-observations')->name('recognise');
             Route::post('{observation}/actions', 'storeAction')->middleware('permission:create-actions')->name('actions.store');
             Route::delete('{observation}', 'destroy')->middleware('permission:delete-observations')->name('destroy');
         });

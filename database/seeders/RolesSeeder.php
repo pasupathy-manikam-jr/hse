@@ -20,7 +20,7 @@ class RolesSeeder extends Seeder
         'users' => ['manage', 'create', 'edit', 'delete'],
         'sites' => ['manage', 'create', 'edit', 'delete'],
         'contractors' => ['manage', 'create', 'edit', 'delete', 'approve'],
-        'observations' => ['manage', 'create', 'edit', 'delete'],
+        'observations' => ['manage', 'create', 'edit', 'delete', 'recognise'],
         'incidents' => ['manage', 'create', 'edit', 'delete'],
         'risk-assessments' => ['manage', 'create', 'edit', 'approve', 'delete'],
         'checklists' => ['manage', 'create', 'edit', 'delete'],
@@ -48,7 +48,7 @@ class RolesSeeder extends Seeder
         'hse-manager' => [
             'manage-sites', 'create-sites', 'edit-sites', 'delete-sites',
             'manage-contractors', 'create-contractors', 'edit-contractors', 'delete-contractors', 'approve-contractors',
-            'manage-observations', 'create-observations', 'edit-observations', 'delete-observations',
+            'manage-observations', 'create-observations', 'edit-observations', 'delete-observations', 'recognise-observations',
             'manage-incidents', 'create-incidents', 'edit-incidents', 'delete-incidents',
             'manage-risk-assessments', 'create-risk-assessments', 'edit-risk-assessments', 'approve-risk-assessments', 'delete-risk-assessments',
             'manage-checklists', 'create-checklists', 'edit-checklists', 'delete-checklists',

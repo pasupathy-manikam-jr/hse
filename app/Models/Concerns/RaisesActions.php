@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Raise corrective actions from a site-bound record with a `status` (closed records take none).
+ * Raise corrective actions from a site-bound record with a `status` (closed or dismissed records take none).
  */
 trait RaisesActions
 {
@@ -24,7 +24,7 @@ trait RaisesActions
      */
     public function raiseAction(array $data): Action
     {
-        if ($this->status === 'closed') {
+        if (in_array($this->status, ['closed', 'dismissed'], true)) {
             throw ValidationException::withMessages(['description' => __('This record is closed.')]);
         }
 

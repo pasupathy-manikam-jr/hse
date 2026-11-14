@@ -11,6 +11,7 @@ import { useTranslation } from '@/hooks/use-translation';
 import {
     CLASSIFICATIONS,
     INCIDENT_TYPES,
+    OBSERVATION_TOPICS,
     OBSERVATION_TYPES,
     labelOf,
 } from '@/lib/hse';
@@ -22,6 +23,7 @@ type Props = {
     siteId: number | null;
     sites: { id: number; code: string; name: string }[];
     observations: Record<string, number>;
+    topics: Record<string, number>;
     incidents: {
         id: number;
         number: string;
@@ -87,6 +89,7 @@ export default function WeeklyReport({
     siteId,
     sites,
     observations,
+    topics,
     incidents,
     prevention,
     actions,
@@ -233,6 +236,19 @@ export default function WeeklyReport({
                                 </li>
                             ))}
                         </ul>
+                    )}
+                    {Object.keys(topics).length > 0 && (
+                        <p className="text-sm">
+                            <span className="text-muted-foreground">
+                                {t('Topics:')}
+                            </span>{' '}
+                            {Object.entries(topics)
+                                .map(
+                                    ([topic, n]) =>
+                                        `${t(labelOf(OBSERVATION_TOPICS, topic))} ${n}`,
+                                )
+                                .join(' · ')}
+                        </p>
                     )}
                 </section>
 

@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $name
  * @property string|null $address
  * @property bool $active
+ * @property list<string>|null $report_recipients who gets the weekly report email
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
@@ -32,6 +33,7 @@ class Site extends Model
     {
         return [
             'active' => 'boolean',
+            'report_recipients' => 'array',
         ];
     }
 

@@ -92,6 +92,7 @@ class DatabaseSeeder extends Seeder
         $this->environmentAndChemicals($tower);
         $this->equipment($tower);
         $this->gapAnalyses($tower, (int) Site::query()->where('code', 'SHA-PLT')->value('id'));
+        $this->reportingCulture($tower);
     }
 
     /**
@@ -204,6 +205,67 @@ class DatabaseSeeder extends Seeder
         ]);
         $talk->attendees()->sync([$user('worker')->id, $user('permit-issuer')->id]);
         auth()->forgetUser();
+    }
+
+    /**
+     * Topics and crews on the tower's observations, three months of further reports (so the
+     * dashboard trends have shape), a dismissed duplicate, an observation of the month for this
+     * month and last, and the weekly report's mailing list.
+     */
+    private function reportingCulture(int $towerId): void
+    {
+        if (Observation::query()->whereNotNull('topic')->exists()) {
+            return;
+        }
+
+        $user = fn (string $role) => User::query()->where('email', "{$role}@example.com")->firstOrFail();
+        $area = fn (string $name) => Area::query()->where(['site_id' => $towerId, 'name' => $name])->value('id');
+        $crew = Contractor::query()->where('name', 'Bina Scaffold Sdn Bhd')->value('id');
+
+        foreach ([
+            'A bundle of rebar slipped' => ['lifting', null],
+            'Edge protection missing' => ['work-at-height', $crew],
+            'Two workers grinding' => ['ppe', null],
+            'Scaffold crew did a full harness check' => ['work-at-height', $crew],
+        ] as $start => [$topic, $contractorId]) {
+            Observation::query()->where('site_id', $towerId)->where('description', 'like', "{$start}%")->update(['topic' => $topic, 'contractor_id' => $contractorId]);
+        }
+
+        foreach ([
+            [20, 'unsafe-act', 'ppe', 'Block A', 'Labourer on level 5 without safety glasses while chasing concrete.', 'worker', null],
+            [27, 'unsafe-condition', 'housekeeping', 'Basement', 'Offcuts and nails left on the stair landing to the basement.', 'worker', null],
+            [33, 'unsafe-condition', 'electrical', 'Site office', 'Extension lead running through a puddle by the site office.', 'permit-issuer', null],
+            [41, 'unsafe-act', 'ppe', 'Crane zone', 'Rigger not wearing gloves while handling wire slings.', 'supervisor', null],
+            [48, 'near-miss', 'mobile-plant', 'Crane zone', 'Reversing tipper came within a metre of a banksman; reversing alarm not working.', 'worker', null],
+            [55, 'positive', 'housekeeping', 'Block A', 'Formwork crew cleared and stacked every offcut before the end of shift.', 'permit-issuer', null],
+            [62, 'unsafe-condition', 'access', 'Block A', 'Scaffold ladder not tied at the top, level 4.', 'worker', $crew],
+            [70, 'unsafe-act', 'ppe', 'Basement', 'Welder working without a face shield.', 'supervisor', null],
+            [78, 'unsafe-condition', 'fire', 'Basement', 'Fire extinguisher at the basement entrance blocked by pallets.', 'worker', null],
+        ] as [$daysAgo, $type, $topic, $areaName, $description, $reporter, $contractorId]) {
+            $observation = Observation::create([
+                'site_id' => $towerId, 'area_id' => $area($areaName), 'type' => $type, 'topic' => $topic, 'contractor_id' => $contractorId,
+                'potential' => $type === 'near-miss' ? 'high' : 'low', 'description' => $description, 'observed_at' => now()->subDays($daysAgo)->setTime(10, 30),
+                'anonymous' => false, 'reporter_id' => $user($reporter)->id,
+            ]);
+            auth()->setUser($user('supervisor'));
+            $observation->transitionTo('closed');
+            auth()->forgetUser();
+        }
+
+        auth()->setUser($user('supervisor'));
+        Observation::create([
+            'site_id' => $towerId, 'area_id' => $area('Block A'), 'type' => 'unsafe-condition', 'topic' => 'work-at-height', 'potential' => 'medium',
+            'description' => 'No guardrail at the level 7 east edge.', 'observed_at' => now()->subDays(4)->setTime(14, 0), 'anonymous' => false, 'reporter_id' => $user('permit-issuer')->id,
+        ])->transitionTo('dismissed', 'Same edge as the earlier anonymous report; handled there.');
+
+        auth()->setUser($user('hse-manager'));
+        Observation::query()->where('description', 'like', 'Scaffold crew did a full harness check%')->firstOrFail()
+            ->recognise('Checked every harness before starting, unprompted. The standard we want on every crew.');
+        Observation::query()->where('description', 'like', 'Reversing tipper came within a metre%')->firstOrFail()
+            ->recognise('Stopped the tipper and reported the dead reversing alarm the same morning. The truck was taken off site.');
+        auth()->forgetUser();
+
+        Site::query()->whereKey($towerId)->update(['report_recipients' => json_encode(['project.manager@example.com', 'hse.team@example.com'])]);
     }
 
     /**

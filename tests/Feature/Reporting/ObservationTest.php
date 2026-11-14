@@ -1,12 +1,15 @@
 <?php
 
 use App\Models\AuditLog;
+use App\Models\Contractor;
 use App\Models\Observation;
 use App\Models\Site;
 use App\Models\User;
+use App\Support\Kpis;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -94,7 +97,7 @@ test('the list is scoped to the user\'s site and filtered by status', function (
     $this->actingAs($supervisor)->get(route('observations.index'))
         ->assertInertia(fn (Assert $page) => $page->component('observations/index')
             ->has('observations.data', 1)
-            ->where('counts', ['all' => 1, 'open' => 1, 'actioned' => 0, 'closed' => 0]));
+            ->where('counts', ['all' => 1, 'open' => 1, 'actioned' => 0, 'closed' => 0, 'dismissed' => 0]));
 
     $this->get(route('observations.index', ['status' => 'closed']))
         ->assertInertia(fn (Assert $page) => $page->has('observations.data', 0));
@@ -184,4 +187,57 @@ test('a queued report sent twice with the same client_ref is stored once', funct
 
     expect(Observation::query()->count())->toBe(1)
         ->and(Observation::query()->sole()->client_ref)->toBe($ref);
+});
+
+test('a report can name its topic, and a supervisor sets the topic and crew on review', function () {
+    $worker = $this->userWithRole('worker');
+    $this->actingAs($worker)->post(route('observations.store'), reportData(['topic' => 'lifting']))->assertSessionHasNoErrors();
+    $this->post(route('observations.store'), reportData(['topic' => 'luck']))->assertSessionHasErrors('topic');
+
+    $observation = Observation::query()->sole();
+    expect($observation->topic)->toBe('lifting');
+    $this->put(route('observations.review', $observation), ['topic' => 'ppe'])->assertForbidden();
+
+    $crew = Contractor::create(['name' => 'Bina Scaffold']);
+    $this->actingAs($this->userWithRole('supervisor'))
+        ->put(route('observations.review', $observation), ['topic' => 'ppe', 'contractor_id' => $crew->id])->assertSessionHasNoErrors();
+    expect($observation->fresh())->topic->toBe('ppe')->contractor_id->toBe($crew->id);
+
+    $this->get(route('observations.index', ['topic' => 'ppe']))->assertInertia(fn (Assert $page) => $page->has('observations.data', 1));
+    $this->get(route('observations.index', ['topic' => 'fire']))->assertInertia(fn (Assert $page) => $page->has('observations.data', 0));
+});
+
+test('a report with no actions can be dismissed with a reason; it then takes no actions and is left out of the counts', function () {
+    $duplicate = makeObservation(['type' => 'near-miss']);
+    $actioned = makeObservation();
+    $actioned->raiseAction(['description' => 'x', 'control_level' => 'engineering', 'priority' => 'low', 'owner_id' => User::factory()->create()->id, 'due_on' => today()]);
+    $this->actingAs($this->userWithRole('supervisor'));
+
+    $this->put(route('observations.dismiss', $duplicate), [])->assertSessionHasErrors('reason');
+    $this->put(route('observations.dismiss', $actioned), ['reason' => 'x'])->assertSessionHasErrors('status');
+    $this->put(route('observations.dismiss', $duplicate), ['reason' => 'Same as the crane report.'])->assertSessionHasNoErrors();
+
+    expect($duplicate->fresh())->status->toBe('dismissed')->status_reason->toBe('Same as the crane report.')
+        ->and(fn () => $duplicate->fresh()->raiseAction(['description' => 'x']))->toThrow(ValidationException::class)
+        ->and((new Kpis($this->userWithRole('hse-manager'), today()->subMonth(), today()))->lagging()['pyramid']['near-miss'])->toBe(1);
+});
+
+test('the HSE manager chooses one observation of the month per site, from a named valid report', function () {
+    $reporter = User::factory()->create(['name' => 'Siti']);
+    $good = makeObservation(['type' => 'positive', 'reporter_id' => $reporter->id]);
+    $other = makeObservation(['reporter_id' => $reporter->id]);
+    $anonymous = makeObservation(['anonymous' => true]);
+
+    $this->actingAs($this->userWithRole('supervisor'))->put(route('observations.recognise', $good), ['note' => 'x'])->assertForbidden();
+
+    $this->actingAs($this->userWithRole('hse-manager'));
+    $this->put(route('observations.recognise', $anonymous), ['note' => 'x'])->assertSessionHasErrors('status');
+    $this->put(route('observations.recognise', $good), [])->assertSessionHasErrors('note');
+    $this->put(route('observations.recognise', $good), ['note' => 'Stopped the lift and re-slung the load.'])->assertSessionHasNoErrors();
+    $this->put(route('observations.recognise', $other), ['note' => 'x'])->assertSessionHasErrors('status');
+
+    expect($good->fresh()->recognised_for->toDateString())->toBe($good->observed_at->startOfMonth()->toDateString());
+    $this->actingAs($this->userWithRole('worker'))->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('reporting.recognised.0.number', $good->number)
+        ->where('reporting.top_reporters.0', ['name' => 'Siti', 'count' => 2]));
 });

@@ -37,6 +37,7 @@ class DashboardController extends Controller
             'daysSinceLti' => $kpis->daysSinceLti(),
             'leading' => $kpis->leading(),
             'tasks' => $kpis->tasks(),
+            'reporting' => $kpis->reporting(),
             'hours' => $user->can('edit-sites')
                 ? SiteMetric::query()->where('metric', SiteMetric::HOURS)->whereIn('site_id', Site::query()->availableTo($user)->select('id'))
                     ->where('month', '>=', $to->startOfMonth()->subMonths(11)->toDateString())

@@ -171,6 +171,24 @@ export const GHS_HAZARDS = [
     { value: 'environment', label: 'Hazardous to the environment' },
 ] as const;
 
+/** Observation::TOPICS: what an observation is about. */
+export const OBSERVATION_TOPICS = [
+    { value: 'ppe', label: 'PPE' },
+    { value: 'housekeeping', label: 'Housekeeping' },
+    { value: 'work-at-height', label: 'Work at height' },
+    { value: 'lifting', label: 'Lifting and rigging' },
+    { value: 'mobile-plant', label: 'Vehicles and mobile plant' },
+    { value: 'electrical', label: 'Electrical' },
+    { value: 'fire', label: 'Fire and hot work' },
+    { value: 'hazardous-substances', label: 'Hazardous substances' },
+    { value: 'manual-handling', label: 'Manual handling' },
+    { value: 'tools', label: 'Tools and equipment' },
+    { value: 'access', label: 'Access and walkways' },
+    { value: 'behaviour', label: 'Behaviour and procedures' },
+    { value: 'environment', label: 'Environment' },
+    { value: 'other', label: 'Other' },
+] as const;
+
 /** GapAnalysisItem::RATINGS. */
 export const GAP_RATINGS = [
     { value: 'conforms', label: 'Conforms' },

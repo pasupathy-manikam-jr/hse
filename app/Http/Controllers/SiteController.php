@@ -77,6 +77,8 @@ class SiteController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
             'active' => ['boolean'],
+            'report_recipients' => ['nullable', 'array', 'max:20'],
+            'report_recipients.*' => ['email:rfc', 'max:255', 'distinct'],
         ]);
     }
 }

@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useCan } from '@/hooks/use-can';
 import { useTranslation } from '@/hooks/use-translation';
 import { dashboard } from '@/routes';
@@ -33,11 +34,19 @@ type Site = {
     name: string;
     address: string | null;
     active: boolean;
+    report_recipients: string[] | null;
     users_count: number;
     areas: { id: number; name: string }[];
 };
 
-const blank = { code: '', name: '', address: '', active: true };
+const blank = {
+    code: '',
+    name: '',
+    address: '',
+    active: true,
+    // One address per line in the form; sent as a list.
+    report_recipients: '',
+};
 
 export default function Sites({
     sites,
@@ -67,6 +76,9 @@ export default function Sites({
                       name: site.name,
                       address: site.address ?? '',
                       active: site.active,
+                      report_recipients: (site.report_recipients ?? []).join(
+                          '\n',
+                      ),
                   }
                 : blank,
         );
@@ -184,6 +196,12 @@ export default function Sites({
                 icon={Building2}
                 onSubmit={(e) => {
                     e.preventDefault();
+                    form.transform((data) => ({
+                        ...data,
+                        report_recipients: data.report_recipients
+                            .split(/[\s,;]+/)
+                            .filter(Boolean),
+                    }));
                     form.submit(
                         editing
                             ? siteRoutes.update(editing.id)
@@ -238,6 +256,35 @@ export default function Sites({
                             }
                         />
                         <InputError message={form.errors.address} />
+                    </div>
+                    <div className="grid gap-2 sm:col-span-3">
+                        <Label htmlFor="site-recipients">
+                            {t('Weekly report email')}
+                        </Label>
+                        <Textarea
+                            id="site-recipients"
+                            rows={3}
+                            placeholder={t('One address per line')}
+                            value={form.data.report_recipients}
+                            onChange={(e) =>
+                                form.setData(
+                                    'report_recipients',
+                                    e.target.value,
+                                )
+                            }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            {t(
+                                "Last week's figures for this site, every Monday at 07:30.",
+                            )}
+                        </p>
+                        <InputError
+                            message={
+                                Object.entries(form.errors).find(([key]) =>
+                                    key.startsWith('report_recipients'),
+                                )?.[1]
+                            }
+                        />
                     </div>
                     <Label className="flex items-center gap-2 sm:col-span-3">
                         <Checkbox

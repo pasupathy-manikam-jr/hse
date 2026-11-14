@@ -21,6 +21,7 @@ export type Observation = {
     id: number;
     number: string;
     type: string;
+    topic: string | null;
     potential: 'low' | 'medium' | 'high';
     description: string;
     immediate_action: string | null;
@@ -28,13 +29,17 @@ export type Observation = {
     anonymous: boolean;
     latitude: string | null;
     longitude: string | null;
-    status: 'open' | 'actioned' | 'closed';
+    status: 'open' | 'actioned' | 'closed' | 'dismissed';
+    status_reason: string | null;
+    recognised_for: string | null;
+    recognition_note: string | null;
     closed_at: string | null;
     created_at: string;
     site: { id: number; code: string; name?: string };
     area: { id: number; name: string } | null;
     reporter: Person | null;
     closer?: Person | null;
+    contractor?: { id: number; name: string } | null;
 };
 
 export type IncidentPerson = {

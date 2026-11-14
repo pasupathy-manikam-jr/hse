@@ -10,7 +10,12 @@ import { Button } from '@/components/ui/button';
 import { useCan } from '@/hooks/use-can';
 import { useFormat } from '@/hooks/use-format';
 import { useTranslation } from '@/hooks/use-translation';
-import { OBSERVATION_TYPES, POTENTIALS, labelOf } from '@/lib/hse';
+import {
+    OBSERVATION_TOPICS,
+    OBSERVATION_TYPES,
+    POTENTIALS,
+    labelOf,
+} from '@/lib/hse';
 import { dashboard } from '@/routes';
 import observationRoutes from '@/routes/observations';
 import type { Observation, Paginated, TableFilters } from '@/types';
@@ -53,6 +58,17 @@ export default function Observations({
                         {o.site.code}
                         {o.area && ` · ${o.area.name}`}
                     </div>
+                    {(o.topic || o.contractor) && (
+                        <div className="text-muted-foreground">
+                            {[
+                                o.topic &&
+                                    t(labelOf(OBSERVATION_TOPICS, o.topic)),
+                                o.contractor?.name,
+                            ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                        </div>
+                    )}
                 </div>
             ),
         },
@@ -90,7 +106,17 @@ export default function Observations({
         {
             key: 'status',
             label: 'Status',
-            render: (o) => <StatusBadge status={o.status} />,
+            render: (o) => (
+                <div className="grid justify-items-start gap-1">
+                    <StatusBadge status={o.status} />
+                    {o.recognised_for && (
+                        <StatusBadge
+                            status="verified"
+                            label={t('Observation of the month')}
+                        />
+                    )}
+                </div>
+            ),
         },
     ];
 
@@ -144,6 +170,16 @@ export default function Observations({
                                 options={POTENTIALS.map((p) => ({
                                     id: p.value,
                                     name: t(p.label),
+                                }))}
+                            />
+                            <FilterSelect
+                                url={url}
+                                filters={filters}
+                                name="topic"
+                                label="All topics"
+                                options={OBSERVATION_TOPICS.map((o) => ({
+                                    id: o.value,
+                                    name: t(o.label),
                                 }))}
                             />
                             {sites.length > 1 && (
