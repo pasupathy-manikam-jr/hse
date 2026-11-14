@@ -9,6 +9,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Validation\ValidationException;
 
 /**
  * One examination of a worker under a health programme (an audiogram, or medical surveillance by
@@ -128,6 +129,45 @@ class HealthExam extends Model
 
             return $startedOn === null || $this->examined_on->gt(CarbonImmutable::parse($startedOn)->addMonthsNoOverflow(HealthProgramme::BASELINE_MONTHS));
         });
+    }
+
+    /**
+     * Record that the worker was told their result.
+     */
+    public function markInformed(string $on): void
+    {
+        $this->forceFill(['informed_on' => $on])->save();
+    }
+
+    /**
+     * Record the notification of a notifiable result to DOSH.
+     */
+    public function markDoshNotified(string $on, string $reference): void
+    {
+        if (! $this->notify_dosh) {
+            throw ValidationException::withMessages(['status' => __('This result is not notifiable.')]);
+        }
+
+        $this->forceFill(['dosh_notified_on' => $on, 'dosh_reference' => $reference])->save();
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public function informedRules(): array
+    {
+        return ['informed_on' => ['required', 'date', 'before_or_equal:today', 'after_or_equal:'.$this->examined_on->toDateString()]];
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public function notifiedRules(): array
+    {
+        return [
+            'dosh_notified_on' => ['required', 'date', 'before_or_equal:today', 'after_or_equal:'.$this->examined_on->toDateString()],
+            'dosh_reference' => ['required', 'string', 'max:100'],
+        ];
     }
 
     /**

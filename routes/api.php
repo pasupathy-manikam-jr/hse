@@ -4,10 +4,12 @@ use App\Http\Controllers\Api\ActionController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CompetencyController;
 use App\Http\Controllers\Api\EquipmentController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\InspectionController;
 use App\Http\Controllers\Api\ObservationController;
 use App\Http\Controllers\Api\OptionsController;
 use App\Http\Controllers\Api\PermitController;
+use App\Http\Controllers\HealthController as WebHealthController;
 use App\Http\Controllers\PhotoController;
 use Illuminate\Broadcasting\BroadcastController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +25,9 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
         Route::get('me/competencies', [CompetencyController::class, 'mine']);
+        // Own health surveillance record and reports (USECHH reg. 27(6)); no permission needed.
+        Route::get('me/health', [HealthController::class, 'mine']);
+        Route::get('me/health/exams/{exam}/file', [WebHealthController::class, 'examFile']);
         Route::get('notifications', [AuthController::class, 'notifications']);
         Route::post('notifications/read', [AuthController::class, 'markNotificationsRead']);
         // Signs the app's subscription to its private channel (private-App.Models.User.{id}) on the Reverb hub.
@@ -46,6 +51,16 @@ Route::prefix('v1')->group(function () {
             Route::post('inspections', [InspectionController::class, 'store'])->middleware('permission:create-inspections');
             Route::get('inspections/{inspection}', [InspectionController::class, 'show']);
             Route::post('inspections/{inspection}/answers', [InspectionController::class, 'answers'])->middleware('permission:create-inspections');
+        });
+
+        Route::middleware('permission:manage-health')->group(function () {
+            Route::get('health', [HealthController::class, 'index']);
+            Route::get('health/{programme}', [HealthController::class, 'show']);
+            Route::post('health/{programme}/exams', [HealthController::class, 'storeExam'])->middleware('permission:edit-health');
+            Route::post('health/{programme}/exams/{exam}/informed', [HealthController::class, 'informed'])->middleware('permission:edit-health');
+            Route::post('health/{programme}/exams/{exam}/notified', [HealthController::class, 'notified'])->middleware('permission:edit-health');
+            Route::post('health/{programme}/readings', [HealthController::class, 'storeReading'])->middleware('permission:edit-health');
+            Route::get('health/readings/{reading}/file', [WebHealthController::class, 'readingFile']);
         });
 
         Route::middleware('permission:manage-permits')->group(function () {

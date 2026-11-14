@@ -14,7 +14,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -107,24 +106,7 @@ class HealthController extends Controller
     public function storeExam(Request $request, HealthProgramme $programme): RedirectResponse
     {
         abort_unless($programme->isVisibleTo($this->user($request)), 404);
-        $data = $request->validate([
-            'user_id' => ['required', Rule::exists('health_programme_members', 'user_id')->where('health_programme_id', $programme->id)],
-            'type' => ['required', Rule::in(HealthExam::TYPES)],
-            'examined_on' => ['required', 'date', 'before_or_equal:today'],
-            'provider' => ['required', 'string', 'max:255'],
-            'outcome' => ['required', Rule::in($programme->outcomes())],
-            'notes' => ['nullable', 'string', 'max:5000'],
-            'file' => HealthExam::uploadRules(),
-        ]);
-
-        $exam = new HealthExam(Arr::except($data, 'file'));
-        $exam->programme()->associate($programme);
-
-        if ($request->hasFile('file')) {
-            $exam->attachUpload($request->file('file'));
-        }
-
-        $exam->save();
+        $exam = $programme->recordExam($request->validate($programme->examRules()), $request->file('file'));
 
         return $this->done($exam->notify_dosh
             ? __('Result recorded. Notify DOSH within :n days, and tell the worker.', ['n' => HealthExam::NOTIFY_DAYS])
@@ -135,7 +117,7 @@ class HealthController extends Controller
     public function informed(Request $request, HealthProgramme $programme, HealthExam $exam): RedirectResponse
     {
         $this->ownExam($request, $programme, $exam);
-        $exam->forceFill($request->validate(['informed_on' => ['required', 'date', 'before_or_equal:today', 'after_or_equal:'.$exam->examined_on->toDateString()]]))->save();
+        $exam->markInformed($request->validate($exam->informedRules())['informed_on']);
 
         return $this->done(__('Recorded.'));
     }
@@ -144,15 +126,8 @@ class HealthController extends Controller
     public function notified(Request $request, HealthProgramme $programme, HealthExam $exam): RedirectResponse
     {
         $this->ownExam($request, $programme, $exam);
-
-        if (! $exam->notify_dosh) {
-            throw ValidationException::withMessages(['status' => __('This result is not notifiable.')]);
-        }
-
-        $exam->forceFill($request->validate([
-            'dosh_notified_on' => ['required', 'date', 'before_or_equal:today', 'after_or_equal:'.$exam->examined_on->toDateString()],
-            'dosh_reference' => ['required', 'string', 'max:100'],
-        ]))->save();
+        $data = $request->validate($exam->notifiedRules());
+        $exam->markDoshNotified($data['dosh_notified_on'], $data['dosh_reference']);
 
         return $this->done(__('DOSH notification recorded.'));
     }
@@ -160,27 +135,9 @@ class HealthController extends Controller
     public function storeReading(Request $request, HealthProgramme $programme): RedirectResponse
     {
         abort_unless($programme->isVisibleTo($this->user($request)), 404);
-        $data = $request->validate([
-            'measured_on' => ['required', 'date', 'before_or_equal:today'],
-            'value' => ['required', 'numeric', 'min:0', 'max:9999999'],
-            'user_id' => ['nullable', Rule::exists('users', 'id')],
-            'assessor' => ['required', 'string', 'max:255'],
-            'notes' => ['nullable', 'string', 'max:5000'],
-            'file' => ExposureReading::uploadRules(),
-        ]);
+        $reading = $programme->recordReading($request->validate(HealthProgramme::readingRules()), $request->file('file'));
 
-        $reading = new ExposureReading(Arr::except($data, 'file'));
-        $reading->programme()->associate($programme);
-
-        if ($request->hasFile('file')) {
-            $reading->attachUpload($request->file('file'));
-        }
-
-        $reading->save();
-
-        $over = $programme->exposure_limit !== null && (float) $reading->value > (float) $programme->exposure_limit;
-
-        return $over
+        return $programme->overLimit($reading)
             ? $this->toast('error', __('Reading recorded: above the exposure limit. Review the controls.'))
             : $this->done(__('Reading recorded.'));
     }

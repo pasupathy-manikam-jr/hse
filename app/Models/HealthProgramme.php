@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
+use Illuminate\Validation\Rule;
 
 /**
  * A health surveillance programme for one exposure at one site: the exposed workers, their
@@ -107,6 +110,84 @@ class HealthProgramme extends Model
     public function outcomes(): array
     {
         return HealthExam::OUTCOMES[$this->hazard];
+    }
+
+    /**
+     * Validation rules for an examination result (web form and API).
+     *
+     * @return array<string, mixed>
+     */
+    public function examRules(): array
+    {
+        return [
+            'user_id' => ['required', Rule::exists('health_programme_members', 'user_id')->where('health_programme_id', $this->id)],
+            'type' => ['required', Rule::in(HealthExam::TYPES)],
+            'examined_on' => ['required', 'date', 'before_or_equal:today'],
+            'provider' => ['required', 'string', 'max:255'],
+            'outcome' => ['required', Rule::in($this->outcomes())],
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'file' => HealthExam::uploadRules(),
+        ];
+    }
+
+    /**
+     * Record a validated result, with its report.
+     *
+     * @param  array<string, mixed>  $data  validated by examRules()
+     */
+    public function recordExam(array $data, ?UploadedFile $report = null): HealthExam
+    {
+        $exam = new HealthExam(Arr::except($data, 'file'));
+        $exam->programme()->associate($this);
+
+        if ($report) {
+            $exam->attachUpload($report);
+        }
+
+        $exam->save();
+
+        return $exam;
+    }
+
+    /**
+     * Validation rules for an exposure reading (web form and API).
+     *
+     * @return array<string, mixed>
+     */
+    public static function readingRules(): array
+    {
+        return [
+            'measured_on' => ['required', 'date', 'before_or_equal:today'],
+            'value' => ['required', 'numeric', 'min:0', 'max:9999999'],
+            'user_id' => ['nullable', Rule::exists('users', 'id')],
+            'assessor' => ['required', 'string', 'max:255'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'file' => ExposureReading::uploadRules(),
+        ];
+    }
+
+    /**
+     * Record a validated reading, with its report.
+     *
+     * @param  array<string, mixed>  $data  validated by readingRules()
+     */
+    public function recordReading(array $data, ?UploadedFile $report = null): ExposureReading
+    {
+        $reading = new ExposureReading(Arr::except($data, 'file'));
+        $reading->programme()->associate($this);
+
+        if ($report) {
+            $reading->attachUpload($report);
+        }
+
+        $reading->save();
+
+        return $reading;
+    }
+
+    public function overLimit(ExposureReading $reading): bool
+    {
+        return $this->exposure_limit !== null && (float) $reading->value > (float) $this->exposure_limit;
     }
 
     /**

@@ -53,7 +53,7 @@ return [
         /*
          * Description rendered on the home page of the API documentation (`/docs/api`).
          */
-        'description' => 'API for the HSE Android app (field work: reporting, actions, inspections, permits, equipment checks, own training). Sign in with POST /v1/auth/login to get a token (add `code` if the person uses two-factor authentication), then send `Authorization: Bearer <token>` and `Accept: application/json`. Same permissions and site scoping as the web. Live notifications: subscribe to `private-App.Models.User.{id}` on the Reverb hub (signed by POST /v1/broadcasting/auth), event `notification`. There is no push to a closed app: when it opens, call GET /v1/notifications?since=<last created_at>. Offline reports: send a `client_ref` UUID so a retry is stored once.',
+        'description' => 'API for the HSE Android app (field work: reporting, actions, inspections, permits, equipment checks, own training and own health record; health surveillance results and readings for HSE managers). Sign in with POST /v1/auth/login to get a token (add `code` if the person uses two-factor authentication), then send `Authorization: Bearer <token>` and `Accept: application/json`. Same permissions and site scoping as the web. Live notifications: subscribe to `private-App.Models.User.{id}` on the Reverb hub (signed by POST /v1/broadcasting/auth), event `notification`. There is no push to a closed app: when it opens, call GET /v1/notifications?since=<last created_at>. Offline reports: send a `client_ref` UUID so a retry is stored once.',
     ],
 
     'ui' => [

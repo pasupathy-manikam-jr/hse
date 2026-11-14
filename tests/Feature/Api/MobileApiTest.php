@@ -3,6 +3,7 @@
 use App\Models\Action;
 use App\Models\ChecklistTemplate;
 use App\Models\Equipment;
+use App\Models\HealthProgramme;
 use App\Models\Inspection;
 use App\Models\Observation;
 use App\Models\Permit;
@@ -194,4 +195,34 @@ test('the broadcast notice has the same shape as a list item', function () {
 
     expect($alert->via(new User))->toBe(['database', 'broadcast'])->and($alert->broadcastAs())->toBe('notification')
         ->and($alert->toBroadcast(new User)->data)->toHaveKeys(['title', 'body', 'target', 'url', 'unread', 'created_at']);
+});
+
+test('everyone gets their own health record from the app; HSE managers record results and readings', function () {
+    Storage::fake('local');
+    $worker = apiUser('worker');
+    $programme = HealthProgramme::create(['site_id' => $this->site->id, 'name' => 'Noise: breakers', 'hazard' => 'noise', 'exam_interval_months' => 12,
+        'monitoring_interval_months' => 60, 'exposure_limit' => 85, 'unit' => 'dB(A)']);
+    $programme->members()->create(['user_id' => $worker->id, 'started_on' => today()->subYear()]);
+
+    $this->getJson('/api/v1/me/health')->assertOk()->assertJsonCount(1, 'memberships')->assertJsonCount(0, 'exams');
+    $this->getJson('/api/v1/health')->assertForbidden();
+
+    $manager = apiUser('hse-manager');
+    $this->getJson('/api/v1/health')->assertOk()->assertJsonPath('0.due_count', 1);
+    $this->getJson("/api/v1/health/{$programme->id}")->assertOk()->assertJsonPath('schedule.0.next_type', 'baseline')->assertJsonPath('outcomes.0', 'normal');
+    $this->postJson("/api/v1/health/{$programme->id}/exams", ['user_id' => $worker->id, 'type' => 'periodic', 'examined_on' => today()->toDateString(), 'provider' => 'ATC Klang', 'outcome' => 'fit'])
+        ->assertJsonValidationErrors('outcome');
+    $exam = $this->post("/api/v1/health/{$programme->id}/exams", ['user_id' => $worker->id, 'type' => 'periodic', 'examined_on' => today()->toDateString(), 'provider' => 'ATC Klang',
+        'outcome' => 'permanent-sts', 'file' => UploadedFile::fake()->create('audiogram.pdf', 10, 'application/pdf')], ['Accept' => 'application/json'])
+        ->assertCreated()->assertJsonPath('notify_dosh', true)->json('id');
+    $this->postJson("/api/v1/health/{$programme->id}/exams/{$exam}/notified", ['dosh_notified_on' => today()->toDateString(), 'dosh_reference' => 'ONRHD/1'])->assertOk()->assertJsonPath('dosh_reference', 'ONRHD/1');
+    $this->postJson("/api/v1/health/{$programme->id}/exams/{$exam}/informed", ['informed_on' => today()->toDateString()])->assertOk();
+    $this->postJson("/api/v1/health/{$programme->id}/readings", ['measured_on' => today()->toDateString(), 'value' => 91, 'assessor' => 'NRA Lim'])->assertCreated()->assertJsonPath('over_limit', true);
+
+    Sanctum::actingAs($worker);
+    $this->getJson('/api/v1/me/health')->assertJsonPath('exams.0.outcome', 'permanent-sts');
+    $this->get("/api/v1/me/health/exams/{$exam}/file")->assertOk();
+    Sanctum::actingAs(tap($this->userWithRole('worker'))->update(['site_id' => $this->site->id]));
+    $this->getJson("/api/v1/me/health/exams/{$exam}/file")->assertNotFound();
+    expect($manager->can('manage-health'))->toBeTrue();
 });
