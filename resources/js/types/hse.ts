@@ -51,6 +51,7 @@ export type IncidentPerson = {
     treatment: string | null;
     illness_type: string | null;
     privacy_case: boolean;
+    serious_injury: boolean;
     body_part: string | null;
     injury_nature: string | null;
     days_lost: number;
@@ -64,6 +65,11 @@ export type Incident = {
     area_id: number | null;
     risk_assessment_id: number | null;
     type: string;
+    dangerous_occurrence: string | null;
+    dosh_notified_at: string | null;
+    dosh_notice: string | null;
+    jkkp_submitted_at: string | null;
+    jkkp_reference: string | null;
     title: string;
     description: string;
     immediate_actions: string | null;

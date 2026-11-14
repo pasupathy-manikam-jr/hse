@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $job_title
  * @property string $role
  * @property string|null $treatment
+ * @property bool $serious_injury NADOPOD First Schedule (fracture, amputation, loss of sight…): DOSH is told at once
  * @property string|null $illness_type
  * @property bool $privacy_case
  * @property string|null $body_part
@@ -50,6 +51,7 @@ class IncidentPerson extends Model
     {
         return [
             'privacy_case' => 'boolean',
+            'serious_injury' => 'boolean',
         ];
     }
 

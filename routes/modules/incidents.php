@@ -10,6 +10,7 @@ Route::middleware(['auth', 'verified', 'permission:manage-incidents'])
     ->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('log', 'log')->name('log');
+        Route::get('register', 'register')->name('register');
         Route::get('create', 'create')->middleware('permission:create-incidents')->name('create');
         Route::post('/', 'store')->middleware('permission:create-incidents')->name('store');
         Route::post('draft', 'draft')->middleware(['permission:create-incidents', 'throttle:20,1'])->name('draft');
@@ -21,5 +22,7 @@ Route::middleware(['auth', 'verified', 'permission:manage-incidents'])
         Route::delete('{incident}/people/{person}', 'destroyPerson')->middleware('permission:edit-incidents')->name('people.destroy');
         Route::put('{incident}/investigation', 'investigate')->middleware('permission:edit-incidents')->name('investigate');
         Route::put('{incident}/status', 'transition')->middleware('permission:edit-incidents')->name('transition');
+        Route::put('{incident}/dosh-notice', 'doshNotice')->middleware('permission:edit-incidents')->name('dosh-notice');
+        Route::put('{incident}/jkkp', 'jkkpSubmitted')->middleware('permission:edit-incidents')->name('jkkp');
         Route::post('{incident}/actions', 'storeAction')->middleware('permission:create-actions')->name('actions.store');
     });

@@ -2,6 +2,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     BadgeCheck,
     BookOpenCheck,
+    Building2,
     CalendarClock,
     Clock,
     FileClock,
@@ -31,6 +32,7 @@ import actionRoutes from '@/routes/actions';
 import dashboardRoutes from '@/routes/dashboard';
 import documentRoutes from '@/routes/documents';
 import handoverRoutes from '@/routes/handovers';
+import incidentRoutes from '@/routes/incidents';
 import observationRoutes from '@/routes/observations';
 import permitRoutes from '@/routes/permits';
 import riskRoutes from '@/routes/risk-assessments';
@@ -115,6 +117,11 @@ const TASKS: Record<
         icon: Repeat,
         href: () => handoverRoutes.index.url(),
     },
+    dosh_to_send: {
+        label: 'Incidents to report to DOSH',
+        icon: Building2,
+        href: () => incidentRoutes.index.url(),
+    },
     documents_to_review: {
         label: 'Your documents due for review',
         icon: FileClock,
@@ -193,7 +200,13 @@ export default function Dashboard({
     leading: Leading;
     tasks: Record<string, number>;
     reporting: Reporting;
-    hours: { id: number; site_id: number; month: string; hours: string }[];
+    hours: {
+        id: number;
+        site_id: number;
+        month: string;
+        hours: string;
+        workers: string | null;
+    }[];
 }) {
     const { t } = useTranslation();
     const { date } = useFormat();
@@ -203,6 +216,7 @@ export default function Dashboard({
         site_id: String(siteId ?? (sites.length === 1 ? sites[0].id : '')),
         month: monthOptions()[1].value,
         hours: '',
+        workers: '',
     });
     const go = (changes: { period?: string; site_id?: string }) =>
         router.get(
@@ -694,13 +708,18 @@ export default function Dashboard({
                 open={enteringHours}
                 onOpenChange={setEnteringHours}
                 title="Hours worked"
-                description="Total hours worked at the site in the month, staff and contractors. Saving again for the same month corrects it."
+                description="Total hours worked at the site in the month, staff and contractors, and the average number of workers (for the JKKP 8 rates). Saving again for the same month corrects it."
                 icon={Clock}
                 onSubmit={(e) => {
                     e.preventDefault();
                     hoursForm.post(dashboardRoutes.hours.url(), {
                         preserveScroll: true,
-                        onSuccess: () => hoursForm.setData('hours', ''),
+                        onSuccess: () =>
+                            hoursForm.setData((d) => ({
+                                ...d,
+                                hours: '',
+                                workers: '',
+                            })),
                     });
                 }}
                 processing={hoursForm.processing}
@@ -755,6 +774,20 @@ export default function Dashboard({
                         />
                         <InputError message={hoursForm.errors.hours} />
                     </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="hrs-workers">
+                            {t('Average workers')}
+                        </Label>
+                        <Input
+                            id="hrs-workers"
+                            inputMode="numeric"
+                            value={hoursForm.data.workers}
+                            onChange={(e) =>
+                                hoursForm.setData('workers', e.target.value)
+                            }
+                        />
+                        <InputError message={hoursForm.errors.workers} />
+                    </div>
                 </div>
                 {hours.length > 0 && (
                     <table className="w-full text-sm">
@@ -769,6 +802,9 @@ export default function Dashboard({
                                 <th className="py-1 text-end font-normal">
                                     {t('Hours')}
                                 </th>
+                                <th className="py-1 text-end font-normal">
+                                    {t('Workers')}
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y">
@@ -781,6 +817,11 @@ export default function Dashboard({
                                     <td className="py-1">{h.month}</td>
                                     <td className="py-1 text-end tabular-nums">
                                         {number.format(Number(h.hours))}
+                                    </td>
+                                    <td className="py-1 text-end tabular-nums">
+                                        {h.workers === null
+                                            ? '—'
+                                            : number.format(Number(h.workers))}
                                     </td>
                                 </tr>
                             ))}

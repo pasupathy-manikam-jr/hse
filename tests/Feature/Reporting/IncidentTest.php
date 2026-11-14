@@ -3,8 +3,12 @@
 use App\Models\Incident;
 use App\Models\Observation;
 use App\Models\Site;
+use App\Models\SiteMetric;
 use App\Models\User;
+use App\Notifications\DailyDigest;
+use App\Support\Jkkp8Register;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -221,4 +225,85 @@ test('an incident with actions cannot be deleted', function () {
     $this->delete(route('incidents.destroy', $plain));
 
     expect($incident->fresh())->not->toBeNull()->and($plain->fresh())->toBeNull();
+});
+
+test('NADOPOD: a death, serious injury or dangerous occurrence needs DOSH told at once and JKKP 6; over 4 days off needs JKKP 6; a disease needs JKKP 7', function () {
+    $minor = makeIncident();
+    injure($minor, 'medical', ['days_lost' => 4]);
+    $offWork = makeIncident(['occurred_at' => '2026-11-02 10:00']);
+    injure($offWork, 'lost-time', ['days_lost' => 5]);
+    $fracture = makeIncident();
+    injure($fracture, 'medical', ['serious_injury' => true]);
+    $collapse = makeIncident(['type' => 'property-damage', 'dangerous_occurrence' => '110']);
+    $disease = makeIncident(['type' => 'illness']);
+    injure($disease, 'medical', ['illness_type' => 'hearing-loss']);
+
+    expect($minor->load('people')->doshDuty())->toBeNull()
+        ->and($offWork->load('people')->doshDuty())->toMatchArray(['form' => 'JKKP 6', 'immediate' => false, 'due_on' => '2026-11-09'])
+        ->and($fracture->load('people')->doshDuty())->toMatchArray(['form' => 'JKKP 6', 'immediate' => true])
+        ->and($collapse->load('people')->doshDuty())->toMatchArray(['form' => 'JKKP 6', 'immediate' => true, 'reasons' => ['Dangerous occurrence 110']])
+        ->and($disease->load('people')->doshDuty())->toMatchArray(['form' => 'JKKP 7', 'immediate' => false]);
+});
+
+test('the DOSH notice and JKKP form are recorded on the incident, and it cannot close before the form is sent', function () {
+    $incident = makeIncident(['dangerous_occurrence' => '610', 'type' => 'property-damage']);
+    $this->actingAs($this->userWithRole('hse-manager'));
+
+    $this->put(route('incidents.transition', $incident), ['status' => 'closed'])->assertSessionHasErrors('status');
+    $this->put(route('incidents.dosh-notice', $incident), ['notified_at' => now()->toIso8601String()])->assertSessionHasErrors('detail');
+    $this->put(route('incidents.dosh-notice', $incident), ['notified_at' => now()->toIso8601String(), 'detail' => 'Phoned JKKP Selangor'])->assertSessionHasNoErrors();
+    $this->put(route('incidents.jkkp', $incident), ['submitted_at' => now()->addDay()->toIso8601String(), 'reference' => 'X'])->assertSessionHasErrors('submitted_at');
+    $this->put(route('incidents.jkkp', $incident), ['submitted_at' => now()->toIso8601String(), 'reference' => 'JKKP6-2026-0412'])->assertSessionHasNoErrors();
+
+    expect($incident->fresh()->load('people')->doshDuty())->toMatchArray(['notified' => true, 'submitted' => true]);
+    $this->get(route('incidents.show', $incident))->assertInertia(fn (Assert $page) => $page->where('dosh.form', 'JKKP 6')->where('incident.jkkp_reference', 'JKKP6-2026-0412'));
+    $this->put(route('incidents.transition', $incident), ['status' => 'closed'])->assertSessionHasNoErrors();
+
+    $this->put(route('incidents.jkkp', makeIncident()), ['submitted_at' => now()->toIso8601String(), 'reference' => 'X'])->assertNotFound();
+    $this->actingAs($this->userWithRole('auditor'))->put(route('incidents.dosh-notice', makeIncident()), ['notified_at' => now()->toIso8601String(), 'detail' => 'x'])->assertForbidden();
+});
+
+test('the JKKP 8 register lists the year\'s cases and works out the rates from hours and workers', function () {
+    $year = now()->year;
+    $death = makeIncident(['occurred_at' => "{$year}-01-10 09:00"]);
+    injure($death, 'fatality');
+    $hand = makeIncident(['occurred_at' => "{$year}-02-10 09:00"]);
+    injure($hand, 'lost-time', ['days_lost' => 10, 'privacy_case' => true]);
+    injure(makeIncident(['occurred_at' => "{$year}-02-11 09:00"]), 'first-aid');
+    $noise = makeIncident(['type' => 'illness', 'occurred_at' => "{$year}-03-01 09:00"]);
+    injure($noise, 'medical', ['illness_type' => 'hearing-loss']);
+    makeIncident(['type' => 'property-damage', 'dangerous_occurrence' => '110', 'occurred_at' => "{$year}-04-01 09:00"]);
+    foreach (['01', '02'] as $m) {
+        SiteMetric::create(['site_id' => $this->site->id, 'month' => "{$year}-{$m}-01", 'metric' => SiteMetric::HOURS, 'value' => 250_000]);
+        SiteMetric::create(['site_id' => $this->site->id, 'month' => "{$year}-{$m}-01", 'metric' => SiteMetric::WORKERS, 'value' => 1_000]);
+    }
+
+    $register = (new Jkkp8Register($this->site->id, $year))->data();
+
+    expect($register['accidents'])->toHaveCount(2)
+        ->and($register['accidents'][1]['name'])->toBe('Privacy case')
+        ->and($register['diseases'])->toHaveCount(1)
+        ->and($register['occurrences'])->toHaveCount(1)
+        ->and($register['summary'])->toMatchArray([
+            'accident_cases' => 2, 'accident_deaths' => 1, 'accident_days_lost' => 6010, 'man_hours' => 500000.0, 'average_workers' => 1000.0,
+            'incident_rate' => 2.0, 'fatality_rate' => 1.0, 'frequency_rate' => 4.0, 'severity_rate' => 12020.0, 'due_on' => ($year + 1).'-01-31',
+        ]);
+
+    $this->actingAs($this->userWithRole('auditor'))->get(route('incidents.register', ['site_id' => $this->site->id, 'year' => $year]))
+        ->assertInertia(fn (Assert $page) => $page->component('incidents/register')->where('summary.accident_cases', 2));
+});
+
+test('people who edit incidents at the site are reminded of a JKKP form still owed', function () {
+    Notification::fake();
+    $supervisor = $this->userWithRole('supervisor');
+    $supervisor->update(['site_id' => $this->site->id]);
+    $elsewhere = $this->userWithRole('supervisor');
+    $elsewhere->update(['site_id' => Site::create(['code' => 'SA', 'name' => 'Plant'])->id]);
+    $incident = makeIncident();
+    injure($incident, 'lost-time', ['days_lost' => 6]);
+
+    $this->artisan('hse:reminders')->assertSuccessful();
+
+    Notification::assertSentTo($supervisor, DailyDigest::class, fn (DailyDigest $n) => str_contains($n->sections['Report to DOSH'][0], 'JKKP 6'));
+    Notification::assertNotSentTo($elsewhere, DailyDigest::class);
 });

@@ -93,6 +93,7 @@ class DatabaseSeeder extends Seeder
         $this->equipment($tower);
         $this->gapAnalyses($tower, (int) Site::query()->where('code', 'SHA-PLT')->value('id'));
         $this->reportingCulture($tower);
+        $this->doshNotifications($tower, (int) Site::query()->where('code', 'SHA-PLT')->value('id'));
     }
 
     /**
@@ -266,6 +267,48 @@ class DatabaseSeeder extends Seeder
         auth()->forgetUser();
 
         Site::query()->whereKey($towerId)->update(['report_recipients' => json_encode(['project.manager@example.com', 'hse.team@example.com'])]);
+    }
+
+    /**
+     * Malaysian notification (NADOPOD 2004): the crush injury kept the scaffolder off for 6 days, so
+     * its JKKP 6 was sent; a crane tilted yesterday (dangerous occurrence 610), DOSH was phoned and
+     * the JKKP 6 is still to send. Average workers per month, for the JKKP 8 rates.
+     */
+    private function doshNotifications(int $towerId, int $plantId): void
+    {
+        if (Incident::query()->whereNotNull('dangerous_occurrence')->exists()) {
+            return;
+        }
+
+        $user = fn (string $role) => User::query()->where('email', "{$role}@example.com")->firstOrFail();
+
+        foreach ([$towerId => 180, $plantId => 110] as $siteId => $workers) {
+            foreach (range(0, 11) as $n) {
+                SiteMetric::query()->updateOrCreate(
+                    ['site_id' => $siteId, 'month' => now()->startOfMonth()->subMonths($n)->toDateString(), 'metric' => SiteMetric::WORKERS],
+                    ['value' => $workers + ($n % 3) * 5],
+                );
+            }
+        }
+
+        $crush = Incident::query()->where('title', 'Hand crushed between scaffold tubes')->first();
+
+        if ($crush) {
+            $crush->people()->where('role', 'injured')->update(['days_lost' => 6]);
+            $crush->recordJkkpSubmitted($user('hse-manager'), $crush->occurred_at->addDays(3)->setTime(16, 0), 'JKKP6/SEL/2026/0412');
+        }
+
+        auth()->setUser($user('supervisor'));
+        $crane = Incident::create([
+            'site_id' => $towerId, 'area_id' => Area::query()->where(['site_id' => $towerId, 'name' => 'Crane zone'])->value('id'),
+            'type' => 'property-damage', 'dangerous_occurrence' => '610',
+            'title' => 'Mobile crane tilted when an outrigger pad sank',
+            'description' => 'During a formwork lift the rear-left outrigger pad sank into backfilled ground and the 50 t crane tilted. The load was landed; nobody was hurt.',
+            'immediate_actions' => 'Lift stopped, area barricaded, crane levelled and stood down until the ground is checked.',
+            'occurred_at' => now()->subDay()->setTime(14, 20),
+        ]);
+        $crane->recordDoshNotice($user('hse-manager'), now()->subDay()->setTime(15, 5), 'Phoned JKKP Wilayah Persekutuan KL, duty officer');
+        auth()->forgetUser();
     }
 
     /**

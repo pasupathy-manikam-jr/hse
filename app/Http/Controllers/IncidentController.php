@@ -11,12 +11,14 @@ use App\Models\Observation;
 use App\Models\RiskAssessment;
 use App\Models\Site;
 use App\Models\User;
+use App\Support\Jkkp8Register;
 use App\Support\TableQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -112,10 +114,12 @@ class IncidentController extends Controller
         abort_unless($incident->isVisibleTo($user), 404);
 
         $incident->load('site:id,code,name', 'site.areas:id,site_id,name', 'area:id,name', 'creator:id,name', 'closer:id,name',
-            'observation:id,number', 'riskAssessment:id,number,revision,title', 'people', 'photos:id,photoable_type,photoable_id', 'actions.owner:id,name', 'actions.verifier:id,name');
+            'observation:id,number', 'riskAssessment:id,number,revision,title', 'people', 'doshNotifier:id,name', 'jkkpSubmitter:id,name', 'photos:id,photoable_type,photoable_id', 'actions.owner:id,name', 'actions.verifier:id,name');
 
         return Inertia::render('incidents/show', [
             'incident' => [...$incident->toArray(), 'investigation_complete' => $incident->investigationComplete()],
+            'dosh' => $incident->doshDuty(),
+            'dangerousOccurrences' => Incident::DANGEROUS_OCCURRENCES,
             // Approved assessments at this site, to link the one that should have controlled the incident.
             'assessments' => RiskAssessment::query()->where('site_id', $incident->site_id)->where('status', 'approved')
                 ->orderBy('number')->get(['id', 'number', 'title']),
@@ -131,6 +135,57 @@ class IncidentController extends Controller
         $incident->update(Arr::except($request->validate($this->detailRules($request, $this->user($request), $incident)), 'site_id'));
 
         return $this->done(__('Incident updated.'));
+    }
+
+    /**
+     * Record the immediate notice to the nearest DOSH office (phone, email…), NADOPOD reg. 5.
+     */
+    public function doshNotice(Request $request, Incident $incident): RedirectResponse
+    {
+        $this->editable($request, $incident);
+        $data = $request->validate([
+            'notified_at' => ['required', 'date', 'before_or_equal:now', 'after_or_equal:'.$incident->occurred_at->toIso8601String()],
+            'detail' => ['required', 'string', 'max:255'],
+        ]);
+        $incident->recordDoshNotice($this->user($request), Carbon::parse($data['notified_at']), $data['detail']);
+
+        return $this->done(__('DOSH notice recorded.'));
+    }
+
+    /**
+     * Record the JKKP 6 / JKKP 7 sent to DOSH, with its reference.
+     */
+    public function jkkpSubmitted(Request $request, Incident $incident): RedirectResponse
+    {
+        $this->editable($request, $incident);
+        abort_if($incident->doshDuty() === null, 404);
+        $data = $request->validate([
+            'submitted_at' => ['required', 'date', 'before_or_equal:now', 'after_or_equal:'.$incident->occurred_at->toIso8601String()],
+            'reference' => ['required', 'string', 'max:100'],
+        ]);
+        $incident->recordJkkpSubmitted($this->user($request), Carbon::parse($data['submitted_at']), $data['reference']);
+
+        return $this->done(__(':form recorded as submitted.', ['form' => $incident->doshDuty()['form'] ?? 'JKKP']));
+    }
+
+    /**
+     * The JKKP 8 register of accidents, dangerous occurrences, poisonings and diseases for a site
+     * and year, with the annual summary DOSH HQ wants by 31 January. Printable.
+     */
+    public function register(Request $request): Response
+    {
+        $user = $this->user($request);
+        $sites = Site::query()->availableTo($user)->get(['id', 'code', 'name']);
+        $site = $sites->firstWhere('id', $request->integer('site_id')) ?? $sites->first();
+        $year = $request->integer('year') ?: now()->year;
+
+        return Inertia::render('incidents/register', [
+            'sites' => $sites,
+            'site' => $site,
+            'year' => $year,
+            ...($site ? (new Jkkp8Register($site->id, $year))->data() : ['accidents' => [], 'occurrences' => [], 'diseases' => [], 'summary' => null]),
+            'dangerousOccurrences' => Incident::DANGEROUS_OCCURRENCES,
+        ]);
     }
 
     public function storePerson(Request $request, Incident $incident): RedirectResponse
@@ -280,6 +335,7 @@ class IncidentController extends Controller
             'site_id' => [$incident ? 'nullable' : 'required', Rule::exists('sites', 'id')->where('active', true)->when($user->site_id !== null, fn ($rule) => $rule->where('id', $user->site_id))],
             'area_id' => ['nullable', Rule::exists('areas', 'id')->where('site_id', $siteId)],
             'type' => ['required', Rule::in(Incident::TYPES)],
+            'dangerous_occurrence' => ['nullable', Rule::in(array_map('strval', array_keys(Incident::DANGEROUS_OCCURRENCES)))],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:10000'],
             'immediate_actions' => ['nullable', 'string', 'max:5000'],
@@ -307,6 +363,7 @@ class IncidentController extends Controller
             'days_restricted' => ['nullable', 'integer', 'min:0', 'max:365'],
             'illness_type' => [$illness ? 'required' : 'prohibited', 'nullable', Rule::in(IncidentPerson::ILLNESS_TYPES)],
             'privacy_case' => ['boolean'],
+            'serious_injury' => ['boolean'],
         ]);
 
         return [
@@ -317,6 +374,7 @@ class IncidentController extends Controller
             'days_restricted' => $injured ? (int) ($data['days_restricted'] ?? 0) : 0,
             'illness_type' => $illness ? $data['illness_type'] : null,
             'privacy_case' => $injured && $request->boolean('privacy_case'),
+            'serious_injury' => $injured && $request->boolean('serious_injury'),
         ];
     }
 

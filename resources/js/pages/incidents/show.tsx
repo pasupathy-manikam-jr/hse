@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
+    Building2,
     CircleAlert,
     CornerDownRight,
     FilePen,
@@ -42,6 +43,7 @@ import {
     TREATMENTS,
     labelOf,
 } from '@/lib/hse';
+import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import incidentRoutes from '@/routes/incidents';
 import observationRoutes from '@/routes/observations';
@@ -69,7 +71,20 @@ type Detail = Incident & {
     people: IncidentPerson[];
     photos: { id: number }[];
     actions: Action[];
+    dosh_notifier: User | null;
+    jkkp_submitter: User | null;
 };
+
+/** What NADOPOD requires for this incident (Incident::doshDuty()). */
+type DoshDuty = {
+    form: 'JKKP 6' | 'JKKP 7';
+    immediate: boolean;
+    due_on: string;
+    reasons: string[];
+    notified: boolean;
+    submitted: boolean;
+    overdue: boolean;
+} | null;
 
 type User = { id: number; name: string };
 
@@ -81,6 +96,7 @@ const blankPerson = {
     treatment: '',
     illness_type: '',
     privacy_case: false,
+    serious_injury: false,
     body_part: '',
     injury_nature: '',
     days_lost: '',
@@ -93,13 +109,17 @@ export default function ShowIncident({
     incident: i,
     users,
     assessments,
+    dosh,
+    dangerousOccurrences,
 }: {
     incident: Detail;
     users: User[];
     assessments: { id: number; number: string; title: string }[];
+    dosh: DoshDuty;
+    dangerousOccurrences: Record<string, string>;
 }) {
     const { t } = useTranslation();
-    const { dateTime } = useFormat();
+    const { date, dateTime } = useFormat();
     const can = useCan();
     const { errors } = usePage().props as { errors: Record<string, string> };
     const editable = can('edit-incidents') && i.status !== 'closed';
@@ -111,9 +131,13 @@ export default function ShowIncident({
     const [removing, setRemoving] = useState<IncidentPerson | null>(null);
     const [closing, setClosing] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [doshStep, setDoshStep] = useState<'notice' | 'jkkp' | null>(null);
+    const notice = useForm({ notified_at: localDateTime(), detail: '' });
+    const jkkp = useForm({ submitted_at: localDateTime(), reference: '' });
 
     const details = useForm({
         type: i.type,
+        dangerous_occurrence: i.dangerous_occurrence ?? '',
         title: i.title,
         area_id: String(i.area_id ?? ''),
         occurred_at: localDateTime(i.occurred_at),
@@ -143,6 +167,7 @@ export default function ShowIncident({
                       treatment: p.treatment ?? '',
                       illness_type: p.illness_type ?? '',
                       privacy_case: p.privacy_case,
+                      serious_injury: p.serious_injury,
                       body_part: p.body_part ?? '',
                       injury_nature: p.injury_nature ?? '',
                       days_lost: String(p.days_lost || ''),
@@ -176,6 +201,14 @@ export default function ShowIncident({
                 )}
             </span>,
         ],
+        ...(i.dangerous_occurrence
+            ? ([
+                  [
+                      'Dangerous occurrence',
+                      `${i.dangerous_occurrence} · ${t(dangerousOccurrences[i.dangerous_occurrence] ?? '')}`,
+                  ],
+              ] as [string, ReactNode][])
+            : []),
         ['Site', `${i.site.code} · ${i.site.name}`],
         ['Area', i.area?.name ?? '—'],
         ['Occurred', dateTime(i.occurred_at)],
@@ -280,6 +313,114 @@ export default function ShowIncident({
                         <CircleAlert className="size-4 shrink-0" />
                         {errors.status}
                     </div>
+                )}
+
+                {dosh && (
+                    <section
+                        aria-label={t('DOSH notification')}
+                        className={cn(
+                            'grid gap-3 rounded-xl border p-5',
+                            !dosh.submitted &&
+                                'border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950',
+                        )}
+                    >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                                <Building2 className="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-400" />
+                                <div className="grid gap-1">
+                                    <h2 className="font-medium">
+                                        {t(
+                                            'Notifiable to DOSH (OSHA 1994 s.32, NADOPOD 2004)',
+                                        )}
+                                    </h2>
+                                    <p className="text-sm">
+                                        {dosh.reasons.join(' · ')}
+                                    </p>
+                                </div>
+                            </div>
+                            {editable && (
+                                <div className="flex flex-wrap gap-2">
+                                    {dosh.immediate && !dosh.notified && (
+                                        <Button
+                                            size="sm"
+                                            onClick={() => {
+                                                notice.clearErrors();
+                                                setDoshStep('notice');
+                                            }}
+                                        >
+                                            {t('Record DOSH notice')}
+                                        </Button>
+                                    )}
+                                    {!dosh.submitted && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                jkkp.clearErrors();
+                                                setDoshStep('jkkp');
+                                            }}
+                                        >
+                                            {t(':form submitted', {
+                                                form: dosh.form,
+                                            })}
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <ol className="grid gap-2 text-sm">
+                            {dosh.immediate && (
+                                <li className="flex flex-wrap items-center gap-2">
+                                    <span className="font-medium">
+                                        1.{' '}
+                                        {t(
+                                            'Tell the nearest DOSH office now, by phone or email',
+                                        )}
+                                    </span>
+                                    {i.dosh_notified_at ? (
+                                        <StatusBadge
+                                            status="verified"
+                                            label={`${dateTime(i.dosh_notified_at)} · ${i.dosh_notice ?? ''}${i.dosh_notifier ? ` · ${i.dosh_notifier.name}` : ''}`}
+                                        />
+                                    ) : (
+                                        <StatusBadge
+                                            status="overdue"
+                                            label={t('Not recorded yet')}
+                                        />
+                                    )}
+                                </li>
+                            )}
+                            <li className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium">
+                                    {dosh.immediate ? '2. ' : ''}
+                                    {t('Send :form to DOSH by :date', {
+                                        form: dosh.form,
+                                        date: date(dosh.due_on),
+                                    })}
+                                </span>
+                                {i.jkkp_submitted_at ? (
+                                    <StatusBadge
+                                        status="verified"
+                                        label={`${dateTime(i.jkkp_submitted_at)} · ${i.jkkp_reference ?? ''}`}
+                                    />
+                                ) : (
+                                    <StatusBadge
+                                        status={
+                                            dosh.overdue ? 'overdue' : 'pending'
+                                        }
+                                        label={t(
+                                            dosh.overdue ? 'Overdue' : 'To do',
+                                        )}
+                                    />
+                                )}
+                            </li>
+                        </ol>
+                        <p className="text-xs text-muted-foreground">
+                            {t(
+                                'The law allows 7 working days; the date shown is 7 calendar days, the safe side. File it on DOSH’s online system and record its reference here. The incident cannot close until the form is recorded.',
+                            )}
+                        </p>
+                    </section>
                 )}
 
                 <div className="grid gap-6 lg:grid-cols-3">
@@ -709,6 +850,36 @@ export default function ShowIncident({
                         </SelectField>
                         <InputError message={details.errors.type} />
                     </div>
+                    <div className="grid gap-2 sm:col-span-2">
+                        <Label htmlFor="edit-do">
+                            {t('Dangerous occurrence (NADOPOD)')}
+                        </Label>
+                        <SelectField
+                            id="edit-do"
+                            value={details.data.dangerous_occurrence}
+                            onChange={(e) =>
+                                details.setData(
+                                    'dangerous_occurrence',
+                                    e.target.value,
+                                )
+                            }
+                        >
+                            <option value="">
+                                {t('Not a dangerous occurrence')}
+                            </option>
+                            {Object.entries(dangerousOccurrences).map(
+                                ([code, label]) => (
+                                    <option key={code} value={code}>
+                                        {code} · {t(label)}
+                                    </option>
+                                ),
+                            )}
+                        </SelectField>
+                        <InputError
+                            message={details.errors.dangerous_occurrence}
+                        />
+                    </div>
+
                     <div className="grid gap-2">
                         <Label htmlFor="edit-when">
                             {t('When')}
@@ -1070,6 +1241,26 @@ export default function ShowIncident({
                             <Label className="flex items-start gap-3 font-normal sm:col-span-2">
                                 <Checkbox
                                     className="mt-0.5"
+                                    checked={person.data.serious_injury}
+                                    onCheckedChange={(checked) =>
+                                        person.setData(
+                                            'serious_injury',
+                                            checked === true,
+                                        )
+                                    }
+                                />
+                                <span>
+                                    {t('Serious bodily injury')}
+                                    <span className="block text-xs text-muted-foreground">
+                                        {t(
+                                            'As listed in the First Schedule of NADOPOD 2004, such as a fracture, an amputation or the loss of sight. DOSH must be told at once.',
+                                        )}
+                                    </span>
+                                </span>
+                            </Label>
+                            <Label className="flex items-start gap-3 font-normal sm:col-span-2">
+                                <Checkbox
+                                    className="mt-0.5"
                                     checked={person.data.privacy_case}
                                     onCheckedChange={(checked) =>
                                         person.setData(
@@ -1089,6 +1280,108 @@ export default function ShowIncident({
                             </Label>
                         </>
                     )}
+                </div>
+            </FormDialog>
+
+            <FormDialog
+                open={doshStep === 'notice'}
+                onOpenChange={(open) => !open && setDoshStep(null)}
+                title="DOSH notice given"
+                description="The immediate notice to the nearest DOSH office: when it was given, and how."
+                icon={Building2}
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    notice.transform((d) => ({
+                        ...d,
+                        notified_at: new Date(d.notified_at).toISOString(),
+                    }));
+                    notice.put(incidentRoutes.doshNotice.url(i.id), {
+                        preserveScroll: true,
+                        onSuccess: () => setDoshStep(null),
+                    });
+                }}
+                processing={notice.processing}
+            >
+                <div className="grid gap-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="dosh-at">
+                            {t('When')}
+                            <span className="text-destructive">*</span>
+                        </Label>
+                        <DateTimePicker
+                            id="dosh-at"
+                            value={notice.data.notified_at}
+                            onChange={(v) => notice.setData('notified_at', v)}
+                        />
+                        <InputError message={notice.errors.notified_at} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="dosh-detail">
+                            {t('How, and to whom')}
+                            <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                            id="dosh-detail"
+                            placeholder={t(
+                                'e.g. Phoned JKKP Selangor, spoke to the duty officer',
+                            )}
+                            value={notice.data.detail}
+                            onChange={(e) =>
+                                notice.setData('detail', e.target.value)
+                            }
+                        />
+                        <InputError message={notice.errors.detail} />
+                    </div>
+                </div>
+            </FormDialog>
+
+            <FormDialog
+                open={doshStep === 'jkkp'}
+                onOpenChange={(open) => !open && setDoshStep(null)}
+                title={`${dosh?.form ?? 'JKKP'} submitted`}
+                description="When the written report went to DOSH, and the reference it was given."
+                icon={Building2}
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    jkkp.transform((d) => ({
+                        ...d,
+                        submitted_at: new Date(d.submitted_at).toISOString(),
+                    }));
+                    jkkp.put(incidentRoutes.jkkp.url(i.id), {
+                        preserveScroll: true,
+                        onSuccess: () => setDoshStep(null),
+                    });
+                }}
+                processing={jkkp.processing}
+            >
+                <div className="grid gap-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="jkkp-at">
+                            {t('Submitted')}
+                            <span className="text-destructive">*</span>
+                        </Label>
+                        <DateTimePicker
+                            id="jkkp-at"
+                            value={jkkp.data.submitted_at}
+                            onChange={(v) => jkkp.setData('submitted_at', v)}
+                        />
+                        <InputError message={jkkp.errors.submitted_at} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="jkkp-ref">
+                            {t('Reference')}
+                            <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                            id="jkkp-ref"
+                            placeholder={t('The number DOSH’s system gave it')}
+                            value={jkkp.data.reference}
+                            onChange={(e) =>
+                                jkkp.setData('reference', e.target.value)
+                            }
+                        />
+                        <InputError message={jkkp.errors.reference} />
+                    </div>
                 </div>
             </FormDialog>
 

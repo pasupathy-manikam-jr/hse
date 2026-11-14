@@ -107,6 +107,11 @@ export default function Incidents({
                                     <BookOpenText /> {t('Injury log')}
                                 </Link>
                             </Button>
+                            <Button variant="outline" asChild>
+                                <Link href={incidentRoutes.register()}>
+                                    <BookOpenText /> {t('JKKP 8 register')}
+                                </Link>
+                            </Button>
                             {can('create-incidents') && (
                                 <Button asChild>
                                     <Link href={incidentRoutes.create()}>

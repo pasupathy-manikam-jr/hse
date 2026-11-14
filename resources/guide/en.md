@@ -54,13 +54,13 @@ Some steps are signed: approving or closing a permit, approving a document revis
 
 The dashboard shows, for the last 12 months or the year to date and for one site or all:
 
-- **Needs you**: actions given to you, actions waiting for your verification, permits to approve, assessments to approve or review, documents to read or review, shift handovers to acknowledge. Click a card to go straight there.
+- **Needs you**: actions given to you, actions waiting for your verification, permits to approve, assessments to approve or review, documents to read or review, shift handovers to acknowledge, incidents still to report to DOSH. Click a card to go straight there.
 - **Injuries**: LTIFR (lost-time injuries per million hours), TRIR (recordable injuries per 200,000 hours), the counts behind them, hours worked, and days since the last lost-time injury at each site. The rates need monthly hours worked (see below).
 - **Safety pyramid**: near misses, first aid, medical treatment, restricted work, lost time and fatalities in the period.
 - **Observations reported** per month, and **Prevention**: inspections completed and their average score, toolbox talks, open and overdue actions.
 - **Observation of the month** at each site, **what observations are about** (the most common topics) and the **top reporters** (named reports only; anonymous and dismissed ones are not counted).
 
-**Hours worked** (HSE managers): click **Hours worked**, choose the site and month, and enter the total hours worked by staff and contractors. Saving the same month again corrects it.
+**Hours worked** (HSE managers): click **Hours worked**, choose the site and month, and enter the total hours worked by staff and contractors and the average number of workers (for the JKKP 8 rates). Saving the same month again corrects it.
 
 ## Reporting an observation
 
@@ -99,9 +99,25 @@ On the incident page:
 
 An incident moves from _reported_ to _under investigation_ to _actions in progress_ (**Investigation done**, which needs the root cause and at least one action) to _closed_. It closes only when every action is verified, and a recordable incident must also have been investigated. A closed incident cannot be changed.
 
+### Telling DOSH (Malaysia, NADOPOD 2004)
+
+Under the Occupational Safety and Health Act 1994 (section 32) and the NADOPOD Regulations 2004, some incidents must be reported to DOSH (JKKP). The incident page works out which, from what you record, and shows a yellow **Notifiable to DOSH** panel:
+
+| What happened                                                                                                                                                                                                                                                                  | What to do                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| A death, a **serious bodily injury** (tick it on the injured person: a fracture, an amputation, the loss of sight… as listed in the First Schedule), or a **dangerous occurrence** (choose its code when you edit the incident, e.g. 110 scaffold collapse, 610 crane failure) | Tell the nearest DOSH office **at once** by phone or email, then send **JKKP 6** within 7 working days |
+| An injury keeping someone off work for **more than 4 days**                                                                                                                                                                                                                    | Send **JKKP 6** within 7 days                                                                          |
+| An **occupational poisoning or disease** (an illness incident)                                                                                                                                                                                                                 | Send **JKKP 7** within 7 days                                                                          |
+
+Click **Record DOSH notice** after the phone call (when, and who you spoke to), and **JKKP 6 submitted** once the form is filed on DOSH's online system, with its reference. The due date shown is 7 calendar days, the safe side of 7 working days. Until the form is recorded, the incident appears under **Needs you** on the dashboard and in the daily email of everyone who can edit incidents at that site, and it cannot be closed. This applies to contractors' workers on your site too: the employer in overall control of the workplace reports, and the contractor reports as well.
+
+### JKKP 8 register
+
+**Incidents → JKKP 8 register** lists, for a site and year, the accidents (medical treatment or worse), dangerous occurrences and occupational poisonings or diseases, with the annual summary: cases, deaths, days lost (a death counts 6,000), man-hours and average workers, and the incident, fatality, frequency and severity rates. The man-hours and average workers come from the monthly figures entered under **Hours worked** on the dashboard. Send the summary to DOSH HQ by **31 January** and keep the register for 5 years. If there were no cases, tell DOSH rather than sending a blank form. **Print** gives a clean copy.
+
 ### Injury log
 
-**Incidents → Injury log** shows the OSHA 300 log and 300A summary for a site and year: one line per recordable case, with the outcome (G–J), days away and restricted (counted up to 180), and the injury or type of illness. Privacy cases show as "Privacy case". **Print** gives a clean copy.
+**Incidents → Injury log** shows the US OSHA 300 log and 300A summary for a site and year: one line per recordable case, with the outcome (G–J), days away and restricted (counted up to 180), and the injury or type of illness. Privacy cases show as "Privacy case". **Print** gives a clean copy.
 
 ## Actions
 

@@ -21,6 +21,9 @@ class SiteMetric extends Model
 {
     public const HOURS = 'hours-worked';
 
+    /** Average number of workers in the month: the base of the JKKP 8 incident and fatality rates. */
+    public const WORKERS = 'workers';
+
     /**
      * Metric => [label, unit]. Environmental metrics follow hours worked.
      *
@@ -28,6 +31,7 @@ class SiteMetric extends Model
      */
     public const METRICS = [
         self::HOURS => ['Hours worked', 'h'],
+        self::WORKERS => ['Average workers', 'people'],
         'general-waste' => ['General waste', 't'],
         'hazardous-waste' => ['Hazardous waste', 't'],
         'recycled-waste' => ['Recycled waste', 't'],
@@ -50,12 +54,12 @@ class SiteMetric extends Model
     }
 
     /**
-     * Environmental metrics only (everything except hours worked).
+     * Environmental metrics only (everything except hours worked and workers).
      *
      * @return array<string, array{string, string}>
      */
     public static function environmental(): array
     {
-        return array_diff_key(self::METRICS, [self::HOURS => true]);
+        return array_diff_key(self::METRICS, [self::HOURS => true, self::WORKERS => true]);
     }
 }

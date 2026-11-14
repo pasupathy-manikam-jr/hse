@@ -173,6 +173,7 @@ class Kpis
             'documents_to_read' => $u->readings()->where('status', 'effective')->wherePivotNull('acknowledged_at')->count(),
             'documents_to_review' => Document::query()->where('owner_id', $u->id)->dueForReview()->count(),
             'handovers_to_acknowledge' => ShiftHandover::query()->where('to_user_id', $u->id)->whereNull('acknowledged_at')->count(),
+            'dosh_to_send' => $u->can('edit-incidents') ? Incident::owingDosh(Incident::query()->visibleTo($u))->count() : 0,
         ]);
     }
 
