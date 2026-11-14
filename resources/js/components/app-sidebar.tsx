@@ -1,10 +1,12 @@
 import { Link } from '@inertiajs/react';
 import {
     BookOpen,
+    CalendarRange,
     ClipboardCheck,
     Eye,
     FileSearch,
     FileText,
+    Gauge,
     FlaskConical,
     GraduationCap,
     KeyRound,
@@ -20,6 +22,7 @@ import {
     ShieldAlert,
     Siren,
     Users,
+    Wrench,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
@@ -43,11 +46,14 @@ import competencies from '@/routes/competencies';
 import contractors from '@/routes/contractors';
 import documents from '@/routes/documents';
 import environment from '@/routes/environment';
+import equipment from '@/routes/equipment';
+import gapAnalyses from '@/routes/gap-analyses';
 import handovers from '@/routes/handovers';
 import incidents from '@/routes/incidents';
 import inspections from '@/routes/inspections';
 import observations from '@/routes/observations';
 import permits from '@/routes/permits';
+import reports from '@/routes/reports';
 import riskAssessments from '@/routes/risk-assessments';
 import toolboxTalks from '@/routes/toolbox-talks';
 import sites from '@/routes/sites';
@@ -63,6 +69,12 @@ const navGroups: { label: string; items: NavItem[] }[] = [
                 title: 'Dashboard',
                 href: dashboard(),
                 icon: LayoutGrid,
+            },
+            {
+                title: 'Weekly report',
+                href: reports.weekly(),
+                icon: CalendarRange,
+                permission: 'manage-reports',
             },
         ],
     },
@@ -116,6 +128,12 @@ const navGroups: { label: string; items: NavItem[] }[] = [
                 permission: 'manage-audits',
             },
             {
+                title: 'Gap analysis',
+                href: gapAnalyses.index(),
+                icon: Gauge,
+                permission: 'manage-audits',
+            },
+            {
                 title: 'Documents',
                 href: documents.index(),
                 icon: FileText,
@@ -132,6 +150,12 @@ const navGroups: { label: string; items: NavItem[] }[] = [
                 href: handovers.index(),
                 icon: Repeat,
                 permission: 'manage-permits',
+            },
+            {
+                title: 'Equipment register',
+                href: equipment.index(),
+                icon: Wrench,
+                permission: 'manage-equipment',
             },
         ],
     },

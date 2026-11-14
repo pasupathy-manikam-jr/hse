@@ -8,6 +8,8 @@ use App\Models\Chemical;
 use App\Models\Competency;
 use App\Models\Contractor;
 use App\Models\Document;
+use App\Models\Equipment;
+use App\Models\GapAnalysis;
 use App\Models\Incident;
 use App\Models\Inspection;
 use App\Models\InternalAudit;
@@ -88,6 +90,8 @@ class DatabaseSeeder extends Seeder
         $this->trainingAndPermits($tower);
         $this->kpisDocumentsAndAudits();
         $this->environmentAndChemicals($tower);
+        $this->equipment($tower);
+        $this->gapAnalyses($tower, (int) Site::query()->where('code', 'SHA-PLT')->value('id'));
     }
 
     /**
@@ -133,6 +137,139 @@ class DatabaseSeeder extends Seeder
             $chemical->save();
         }
 
+        auth()->forgetUser();
+    }
+
+    /**
+     * Equipment at the tower: one in date with a year of history, one due soon, one overdue, the
+     * compressor and a wire sling that failed their examinations, and a lifting permit blocked by
+     * that sling. A toolbox talk this week, so the weekly report has one.
+     */
+    private function equipment(int $towerId): void
+    {
+        if (Equipment::query()->exists()) {
+            return;
+        }
+
+        $user = fn (string $role) => User::query()->where('email', "{$role}@example.com")->firstOrFail();
+        $area = fn (string $name) => Area::query()->where(['site_id' => $towerId, 'name' => $name])->value('id');
+        $body = 'Allianz Inspection Services';
+        $item = fn (string $tag) => Equipment::query()->where('asset_tag', $tag)->firstOrFail();
+
+        auth()->setUser($user('supervisor'));
+        foreach ([
+            ['CR-01', '50 t mobile crane', 'lifting', 'Crane zone', 12, 'LTM1050-3.1 / 0487'],
+            ['SL-14', 'Chain sling set, 4-leg 5 t', 'lifting', 'Crane zone', 6, 'CS-5T-2219'],
+            ['SL-09', 'Wire rope sling 3 t × 4 m', 'lifting', 'Crane zone', 6, 'WR-3T-0912'],
+            ['FE-07', 'CO2 extinguisher, level 3', 'fire', 'Site office', 6, null],
+            ['AC-02', 'Air compressor 185 cfm', 'pressure', 'Basement', 12, 'XAS185-77341'],
+            ['SC-L6', 'Level 6 scaffold, east elevation', 'access', 'Block A', 1, null],
+        ] as [$tag, $name, $type, $areaName, $months, $serial]) {
+            Equipment::create([
+                'site_id' => $towerId, 'area_id' => $area($areaName), 'asset_tag' => $tag, 'name' => $name, 'type' => $type, 'serial_number' => $serial,
+                'owner_id' => $user('supervisor')->id, 'inspection_interval_months' => $months,
+            ]);
+        }
+
+        foreach ([
+            ['CR-01', now()->subMonths(15), true, $body, null],
+            ['CR-01', now()->subMonths(3), true, $body, 'Hoist rope wear 4 %; re-check at next examination.'],
+            ['SL-14', now()->subMonths(6)->addDays(10), true, $body, null],
+            ['SL-09', now()->subMonths(4), true, $body, null],
+            ['SL-09', now()->subDays(3), false, 'Site rigging supervisor', 'Broken wires and kinking near the eye. Quarantined and tagged DO NOT USE.'],
+            ['FE-07', now()->subMonths(7), true, 'FireTech Services', null],
+            ['AC-02', now()->subMonths(2), false, $body, 'Safety relief valve does not lift at set pressure.'],
+            ['SC-L6', now()->subDays(5), true, 'Scaffold inspector (Bina Scaffold)', 'Tagged green after the tie check.'],
+        ] as [$tag, $date, $passed, $inspector, $notes]) {
+            $item($tag)->recordInspection(['inspected_on' => $date->toDateString(), 'passed' => $passed, 'inspector' => $inspector, 'notes' => $notes],
+                // A placeholder certificate on the formal examinations, so the demo links work.
+                $inspector === $body ? UploadedFile::fake()->create(Str::slug("{$tag}-{$date->toDateString()}").'.pdf', 20, 'application/pdf') : null);
+        }
+
+        // The rigger holds a valid ticket, so the failed sling is the only thing blocking this permit.
+        UserCompetency::create(['user_id' => $user('worker')->id, 'competency_id' => Competency::query()->where('name', 'Rigging and slinging')->value('id'),
+            'issued_on' => now()->subYear()->toDateString(), 'expires_on' => now()->addYears(2)->toDateString()]);
+        $lift = Permit::create([
+            'type' => 'lifting', 'site_id' => $towerId, 'area_id' => $area('Crane zone'),
+            'risk_assessment_id' => RiskAssessment::query()->where('title', 'Erecting and dismantling scaffold')->where('status', 'approved')->value('id'),
+            'description' => 'Lift the level 8 formwork panels with the mobile crane.', 'valid_from' => now()->addDay()->setTime(8, 0), 'valid_to' => now()->addDay()->setTime(16, 0),
+            'precautions' => array_fill_keys(array_keys(Permit::precautionsFor('lifting')), true),
+        ]);
+        $lift->workers()->sync([$user('worker')->id]);
+        $lift->equipment()->sync([$item('CR-01')->id, $item('SL-09')->id]);
+
+        $talk = ToolboxTalk::create([
+            'site_id' => $towerId, 'topic' => 'Checking slings before every lift', 'held_on' => now()->subDay()->toDateString(), 'presenter_id' => $user('supervisor')->id,
+            'notes' => 'Showed the failed wire sling SL-09: broken wires, kinks, missing tag. If in doubt, quarantine it.',
+        ]);
+        $talk->attendees()->sync([$user('worker')->id, $user('permit-issuer')->id]);
+        auth()->forgetUser();
+    }
+
+    /**
+     * Gap analyses: last year's baseline at the tower (completed), this year's (in progress, with
+     * two actions for the gaps), and a completed one at the plant.
+     */
+    private function gapAnalyses(int $towerId, int $plantId): void
+    {
+        if (GapAnalysis::query()->exists()) {
+            return;
+        }
+
+        $user = fn (string $role) => User::query()->where('email', "{$role}@example.com")->firstOrFail();
+        /** Rate each clause: [rating, evidence] by number; the rest get $default. */
+        $rate = function (GapAnalysis $analysis, array $byClause, string $default, string $evidence): void {
+            $ratings = [];
+            foreach ($analysis->items()->with('clause:id,number')->get() as $item) {
+                [$rating, $text] = $byClause[$item->clause->number] ?? [$default, $evidence];
+                $ratings[$item->id] = ['rating' => $rating, 'evidence' => $text];
+            }
+            $analysis->rate($ratings);
+        };
+
+        auth()->setUser($user('auditor'));
+        $baseline = GapAnalysis::create(['site_id' => $towerId, 'title' => 'Baseline before ISO 45001 programme', 'assessed_on' => now()->subYear()->toDateString()]);
+        $rate($baseline, [
+            '5.2' => ['conforms', 'Group HSE policy signed by the MD, posted at the gate.'],
+            '6.1.2' => ['partial', 'Method statements exist but no hazard register or risk scoring.'],
+            '7.2' => ['partial', 'CIDB green cards checked; no record of task competencies.'],
+            '8.2' => ['conforms', 'Emergency plan and quarterly fire drills recorded.'],
+            '9.2' => ['gap', 'No internal audit programme.'],
+            '9.3' => ['gap', 'No management review held.'],
+            '10.2' => ['gap', 'Incidents logged in a spreadsheet; no root cause or follow-up.'],
+        ], 'partial', 'Done informally; not documented.');
+        $baseline->complete('Basic site controls in place but little is documented. Priorities: risk register, incident investigation, internal audit.');
+
+        $current = GapAnalysis::create(['site_id' => $towerId, 'title' => 'Pre-certification gap analysis', 'assessed_on' => now()->subDays(4)->toDateString()]);
+        $rate($current, [
+            '4.1' => ['conforms', 'Context and issues reviewed at the project kick-off (minutes, March).'],
+            '4.2' => ['partial', 'Client and authority needs known; no register of interested parties.'],
+            '4.3' => ['gap', 'Scope of the OH&S management system is not written down.'],
+            '5.4' => ['partial', 'Toolbox talks held weekly; no safety committee minutes since August.'],
+            '6.1.3' => ['gap', 'No register of legal requirements (OSHA 1994, FMA 1967 regulations).'],
+            '7.2' => ['partial', 'Training matrix in use; one scaffolder had no inspection training (audit AUD finding).'],
+            '8.1.4' => ['partial', 'Contractors approved and insured; insurance copies kept on paper.'],
+            '9.3' => ['gap', 'First management review not yet scheduled.'],
+            '10.3' => [null, null],
+            '9.1' => [null, null],
+        ], 'conforms', 'Records in this system (registers, permits, inspections).');
+
+        auth()->setUser($user('hse-manager'));
+        foreach ([
+            ['Write the scope of the OH&S management system (§4.3) and have it signed with the policy.', 'hse-manager', 3],
+            ['Compile the register of legal and other requirements (§6.1.3) and check compliance quarterly.', 'hse-manager', 6],
+        ] as [$description, $owner, $weeks]) {
+            $current->raiseAction(['description' => $description, 'control_level' => 'administrative', 'priority' => 'medium',
+                'owner_id' => $user($owner)->id, 'due_on' => now()->addWeeks($weeks)->toDateString()]);
+        }
+
+        $plant = GapAnalysis::create(['site_id' => $plantId, 'title' => 'Annual gap analysis: stamping plant', 'assessed_on' => now()->subMonths(2)->toDateString()]);
+        $rate($plant, [
+            '8.1.3' => ['gap', 'Press line changes made without a documented management-of-change review.'],
+            '8.2' => ['partial', 'Evacuation drill held; no ammonia-leak scenario for the boiler house.'],
+            '7.4' => ['not-applicable', 'Covered by the group communication procedure (assessed at group level).'],
+        ], 'conforms', 'Certified to ISO 45001 since 2024; records reviewed.');
+        $plant->complete('Mature system. Close the management-of-change gap on the press line before the surveillance audit.');
         auth()->forgetUser();
     }
 

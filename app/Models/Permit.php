@@ -203,6 +203,14 @@ class Permit extends Model
     }
 
     /**
+     * @return BelongsToMany<Equipment, $this>
+     */
+    public function equipment(): BelongsToMany
+    {
+        return $this->belongsToMany(Equipment::class, 'permit_equipment')->orderBy('asset_tag');
+    }
+
+    /**
      * @return HasMany<PermitGasTest, $this>
      */
     public function gasTests(): HasMany
@@ -273,6 +281,14 @@ class Permit extends Model
 
         foreach ($this->missingCompetencies() as $line) {
             $problems[] = __('No valid competency: :line', ['line' => $line]);
+        }
+
+        foreach ($this->equipment()->get() as $item) {
+            if (! $item->isFitForUseUntil($this->valid_to)) {
+                $problems[] = $item->status === 'in-service'
+                    ? __(':tag :name is not inspected through the end of the permit.', ['tag' => $item->asset_tag, 'name' => $item->name])
+                    : __(':tag :name is out of service.', ['tag' => $item->asset_tag, 'name' => $item->name]);
+            }
         }
 
         if ($this->type === 'confined-space' && ! $this->gasTests()->where('passed', true)->exists()) {

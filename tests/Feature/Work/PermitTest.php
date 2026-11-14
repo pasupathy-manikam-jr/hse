@@ -2,6 +2,7 @@
 
 use App\Models\Competency;
 use App\Models\Contractor;
+use App\Models\Equipment;
 use App\Models\Permit;
 use App\Models\RiskAssessment;
 use App\Models\Site;
@@ -204,4 +205,25 @@ test('only a requested permit can be edited or deleted', function () {
 
     $this->actingAs($this->requester)->put(route('permits.update', $permit), permitData(['site_id' => null]))->assertSessionHasErrors('status');
     $this->actingAs($this->userWithRole('hse-manager'))->delete(route('permits.destroy', $permit))->assertSessionHasErrors('status');
+});
+
+test('equipment on a permit must be at its site, in service and inspected through the end of the permit', function () {
+    $equipment = fn (array $attributes) => Equipment::forceCreate(['site_id' => $this->site->id, 'name' => 'Crane', 'type' => 'lifting', 'inspection_interval_months' => 12, ...$attributes]);
+    $crane = $equipment(['asset_tag' => 'CR-01', 'last_inspected_on' => today()->subMonths(12)->subDay()]);
+    $sling = $equipment(['asset_tag' => 'SL-01', 'last_inspected_on' => today(), 'status' => 'out-of-service']);
+    $other = $equipment(['asset_tag' => 'SA-01', 'site_id' => Site::create(['code' => 'SA', 'name' => 'Plant'])->id]);
+    hold($this->worker, 'lifting', null);
+
+    $this->actingAs($this->requester)->post(route('permits.store'), permitData(['type' => 'lifting', 'equipment_ids' => [$other->id]]))->assertSessionHasErrors('equipment_ids.0');
+
+    $permit = requestPermit(['type' => 'lifting', 'equipment_ids' => [$crane->id, $sling->id]]);
+    expect($permit->fresh()->approvalProblems())->toBe(['CR-01 Crane is not inspected through the end of the permit.', 'SL-01 Crane is out of service.']);
+    approve($permit)->assertSessionHasErrors('status');
+
+    $crane->recordInspection(['inspected_on' => today()->toDateString(), 'passed' => true, 'inspector' => 'Allianz']);
+    $sling->update(['status' => 'in-service']);
+    approve($permit)->assertSessionHasNoErrors();
+
+    $this->actingAs($this->userWithRole('hse-manager'))->delete(route('equipment.destroy', $crane));
+    expect($crane->fresh())->not->toBeNull();
 });

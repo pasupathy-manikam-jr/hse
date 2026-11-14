@@ -25,6 +25,7 @@ export default function RequestPermit(options: PermitOptions) {
         valid_from: inHours(0),
         valid_to: inHours(8),
         worker_ids: [],
+        equipment_ids: [],
     });
 
     return (

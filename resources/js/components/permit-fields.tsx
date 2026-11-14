@@ -18,6 +18,7 @@ export type PermitFormData = {
     valid_from: string;
     valid_to: string;
     worker_ids: number[];
+    equipment_ids: number[];
 };
 
 export type PermitOptions = {
@@ -45,6 +46,14 @@ export type PermitOptions = {
         name: string;
         site_id: number | null;
         contractor_id: number | null;
+    }[];
+    equipment: {
+        id: number;
+        site_id: number;
+        asset_tag: string;
+        name: string;
+        status: string;
+        next_inspection_on: string | null;
     }[];
 };
 
@@ -241,6 +250,40 @@ export function PermitFields({
                     }
                 />
                 <InputError message={errors.worker_ids} />
+            </div>
+            <div className="grid gap-2 sm:col-span-2">
+                <Label htmlFor="ptw-equipment">{t('Equipment used')}</Label>
+                <PeoplePicker
+                    id="ptw-equipment"
+                    placeholder="Filter equipment…"
+                    people={options.equipment
+                        .filter((e) => String(e.site_id) === data.site_id)
+                        .map((e) => ({
+                            id: e.id,
+                            name: `${e.asset_tag} · ${e.name}`,
+                        }))}
+                    value={data.equipment_ids}
+                    onChange={(ids) => setData('equipment_ids', ids)}
+                    note={(id) => {
+                        const item = options.equipment.find((e) => e.id === id);
+
+                        if (item?.status === 'out-of-service') {
+                            return t('out of service');
+                        }
+
+                        return item?.next_inspection_on
+                            ? t('inspection due :d', {
+                                  d: item.next_inspection_on,
+                              })
+                            : t('never inspected');
+                    }}
+                />
+                <p className="text-xs text-muted-foreground">
+                    {t(
+                        'Listed equipment must be in service and inspected through the end of the permit.',
+                    )}
+                </p>
+                <InputError message={errors.equipment_ids} />
             </div>
         </div>
     );

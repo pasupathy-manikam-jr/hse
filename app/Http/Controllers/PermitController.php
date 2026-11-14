@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contractor;
+use App\Models\Equipment;
 use App\Models\Permit;
 use App\Models\PermitIsolation;
 use App\Models\RiskAssessment;
@@ -50,8 +51,9 @@ class PermitController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
-        $permit = Permit::create(Arr::except($data, 'worker_ids'));
+        $permit = Permit::create(Arr::except($data, ['worker_ids', 'equipment_ids']));
         $permit->workers()->sync($data['worker_ids']);
+        $permit->equipment()->sync($data['equipment_ids'] ?? []);
         $this->toast('success', __(':number requested. Confirm the precautions; then it can be approved.', ['number' => $permit->number]));
 
         return to_route('permits.show', $permit);
@@ -63,7 +65,7 @@ class PermitController extends Controller
         abort_unless($permit->isVisibleTo($user), 404);
 
         $permit->load('site:id,code,name', 'area:id,name', 'contractor:id,name,approved,insurance_expires_on', 'riskAssessment:id,number,revision,title,status',
-            'workers:id,name', 'creator:id,name', 'approver:id,name', 'gasTests.tester:id,name',
+            'workers:id,name', 'equipment:id,asset_tag,name,status,next_inspection_on', 'creator:id,name', 'approver:id,name', 'gasTests.tester:id,name',
             'isolations.isolator:id,name', 'isolations.remover:id,name', 'signatures');
 
         return Inertia::render('permits/show', [
@@ -83,8 +85,9 @@ class PermitController extends Controller
     {
         $this->requested($request, $permit);
         $data = $this->validated($request, $permit);
-        $permit->update(Arr::except($data, ['worker_ids', 'site_id']));
+        $permit->update(Arr::except($data, ['worker_ids', 'equipment_ids', 'site_id']));
         $permit->workers()->sync($data['worker_ids']);
+        $permit->equipment()->sync($data['equipment_ids'] ?? []);
 
         return $this->done(__('Permit updated.'));
     }
@@ -192,6 +195,8 @@ class PermitController extends Controller
             'contractors' => Contractor::query()->orderBy('name')->get(['id', 'name', 'approved', 'insurance_expires_on']),
             'people' => User::query()->where(fn (Builder $q) => $q->whereNull('site_id')->orWhereIn('site_id', $sites->pluck('id')))
                 ->orderBy('name')->get(['id', 'name', 'site_id', 'contractor_id']),
+            'equipment' => Equipment::query()->whereIn('site_id', $sites->pluck('id'))->orderBy('asset_tag')
+                ->get(['id', 'site_id', 'asset_tag', 'name', 'status', 'next_inspection_on']),
         ];
     }
 
@@ -213,6 +218,8 @@ class PermitController extends Controller
             'valid_to' => ['required', 'date', 'after:valid_from'],
             'worker_ids' => ['required', 'array', 'min:1'],
             'worker_ids.*' => ['integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
+            'equipment_ids' => ['nullable', 'array'],
+            'equipment_ids.*' => ['integer', Rule::exists('equipment', 'id')->where('site_id', $siteId)],
         ]);
 
         if (Carbon::parse($data['valid_from'])->diffInMinutes(Carbon::parse($data['valid_to'])) > Permit::MAX_HOURS * 60) {

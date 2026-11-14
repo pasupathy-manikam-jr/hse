@@ -171,6 +171,36 @@ export const GHS_HAZARDS = [
     { value: 'environment', label: 'Hazardous to the environment' },
 ] as const;
 
+/** GapAnalysisItem::RATINGS. */
+export const GAP_RATINGS = [
+    { value: 'conforms', label: 'Conforms' },
+    { value: 'partial', label: 'Partly' },
+    { value: 'gap', label: 'Gap' },
+    { value: 'not-applicable', label: 'N/A' },
+] as const;
+
+/** ISO 45001:2018 sections, by the first part of the clause number. */
+export const ISO_SECTIONS: Record<string, string> = {
+    '4': 'Context of the organization',
+    '5': 'Leadership and worker participation',
+    '6': 'Planning',
+    '7': 'Support',
+    '8': 'Operation',
+    '9': 'Performance evaluation',
+    '10': 'Improvement',
+};
+
+/** Equipment::TYPES. */
+export const EQUIPMENT_TYPES = [
+    { value: 'lifting', label: 'Lifting equipment' },
+    { value: 'pressure', label: 'Pressure system' },
+    { value: 'fire', label: 'Fire equipment' },
+    { value: 'access', label: 'Scaffold / access' },
+    { value: 'electrical', label: 'Electrical / portable tools' },
+    { value: 'vehicle', label: 'Vehicle / mobile plant' },
+    { value: 'other', label: 'Other' },
+] as const;
+
 /** OSHA 300 column M. */
 export const ILLNESS_TYPES = [
     { value: 'skin-disorder', label: 'Skin disorder' },

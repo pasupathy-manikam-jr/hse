@@ -57,6 +57,7 @@ type Detail = Permit & {
         status: string;
     };
     workers: Person[];
+    equipment: { id: number; asset_tag: string; name: string }[];
     approver: Person | null;
     gas_tests: {
         id: number;
@@ -198,6 +199,7 @@ export default function ShowPermit({
         valid_from: localDateTime(p.valid_from),
         valid_to: localDateTime(p.valid_to),
         worker_ids: p.workers.map((w) => w.id),
+        equipment_ids: p.equipment.map((e) => e.id),
     });
 
     const move = (status: string) =>
@@ -422,6 +424,21 @@ export default function ShowPermit({
                                 ))}
                             </ul>
                         </section>
+
+                        {p.equipment.length > 0 && (
+                            <section className="grid gap-2 rounded-xl border p-5">
+                                <h2 className="font-medium">
+                                    {t('Equipment used')}
+                                </h2>
+                                <ul className="grid gap-1 text-sm">
+                                    {p.equipment.map((e) => (
+                                        <li key={e.id}>
+                                            {e.asset_tag} · {e.name}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        )}
 
                         {p.signatures.length > 0 && (
                             <section className="grid gap-2 rounded-xl border p-5">

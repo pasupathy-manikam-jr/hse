@@ -32,6 +32,8 @@ class RolesSeeder extends Seeder
         'audits' => ['manage', 'create', 'edit'],
         'environment' => ['manage', 'edit'],
         'chemicals' => ['manage', 'create', 'edit', 'delete'],
+        'equipment' => ['manage', 'create', 'edit', 'delete'],
+        'reports' => ['manage'],
         // Everyone sees and completes the actions they own; these cover the whole register.
         'actions' => ['manage', 'create', 'verify'],
     ];
@@ -58,6 +60,7 @@ class RolesSeeder extends Seeder
             'manage-audits', 'create-audits', 'edit-audits',
             'manage-environment', 'edit-environment',
             'manage-chemicals', 'create-chemicals', 'edit-chemicals', 'delete-chemicals',
+            'manage-equipment', 'create-equipment', 'edit-equipment', 'delete-equipment', 'manage-reports',
             'manage-actions', 'create-actions', 'verify-actions',
         ],
         'supervisor' => [
@@ -69,17 +72,18 @@ class RolesSeeder extends Seeder
             'manage-permits', 'create-permits', 'manage-competencies', 'edit-competencies',
             'manage-toolbox-talks', 'create-toolbox-talks', 'manage-documents', 'manage-audits',
             'manage-environment', 'edit-environment', 'manage-chemicals', 'create-chemicals', 'edit-chemicals',
+            'manage-equipment', 'create-equipment', 'edit-equipment', 'manage-reports',
             'manage-actions', 'create-actions', 'verify-actions',
         ],
         'permit-issuer' => ['manage-sites', 'manage-contractors', 'manage-observations', 'create-observations', 'manage-incidents', 'create-incidents',
             'manage-risk-assessments', 'manage-inspections', 'create-inspections',
             'manage-permits', 'create-permits', 'approve-permits', 'manage-competencies',
-            'manage-toolbox-talks', 'create-toolbox-talks', 'manage-documents', 'manage-chemicals', 'manage-actions'],
+            'manage-toolbox-talks', 'create-toolbox-talks', 'manage-documents', 'manage-chemicals', 'manage-equipment', 'manage-reports', 'manage-actions'],
         // Workers can read the chemical register and its safety data sheets (right to know).
         'worker' => ['create-observations', 'manage-chemicals'],
         'auditor' => ['manage-sites', 'manage-contractors', 'manage-observations', 'manage-incidents', 'manage-risk-assessments', 'manage-checklists', 'manage-inspections',
             'manage-permits', 'manage-competencies', 'manage-toolbox-talks', 'manage-documents',
-            'manage-audits', 'create-audits', 'edit-audits', 'manage-environment', 'manage-chemicals', 'manage-actions', 'create-actions'],
+            'manage-audits', 'create-audits', 'edit-audits', 'manage-environment', 'manage-chemicals', 'manage-equipment', 'manage-reports', 'manage-actions', 'create-actions'],
     ];
 
     public static function label(string $role): string
