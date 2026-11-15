@@ -40,6 +40,8 @@ class DashboardController extends Controller
             'tasks' => $kpis->tasks(),
             'reporting' => $kpis->reporting(),
             'hours' => $user->can('edit-sites') ? $this->monthlyFigures($user, $to) : [],
+            // The Android field app, when its APK is on this server (public/downloads, not in git).
+            'androidApp' => is_file(public_path('downloads/hse.apk')) ? asset('downloads/hse.apk') : null,
         ]);
     }
 

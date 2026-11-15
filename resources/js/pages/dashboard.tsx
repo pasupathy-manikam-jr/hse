@@ -11,6 +11,7 @@ import {
     ListChecks,
     Repeat,
     ShieldAlert,
+    Smartphone,
     Trophy,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -198,6 +199,7 @@ export default function Dashboard({
     tasks,
     reporting,
     hours,
+    androidApp,
 }: {
     period: { key: '12m' | 'ytd'; from: string; to: string };
     siteId: number | null;
@@ -207,6 +209,8 @@ export default function Dashboard({
     leading: Leading;
     tasks: Record<string, number>;
     reporting: Reporting;
+    /** APK download, when the Android field app is on this server. */
+    androidApp: string | null;
     hours: {
         id: number;
         site_id: number;
@@ -296,6 +300,13 @@ export default function Dashboard({
                                     }}
                                 >
                                     <Clock /> {t('Hours worked')}
+                                </Button>
+                            )}
+                            {androidApp && (
+                                <Button variant="outline" asChild>
+                                    <a href={androidApp} download>
+                                        <Smartphone /> {t('Android app')}
+                                    </a>
                                 </Button>
                             )}
                         </div>
