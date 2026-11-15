@@ -29,9 +29,11 @@ class HseAlert extends Notification
         return ['database', 'broadcast'];
     }
 
+    /** Sent to Reverb straight away (sync), not queued: there is no queue worker for this app. */
     public function toBroadcast(object $notifiable): BroadcastMessage
     {
-        return new BroadcastMessage([...$this->toArray($notifiable), 'unread' => true, 'created_at' => now()->toIso8601String()]);
+        return (new BroadcastMessage([...$this->toArray($notifiable), 'unread' => true, 'created_at' => now()->toIso8601String()]))
+            ->onConnection('sync');
     }
 
     /** Event name the clients bind to. */

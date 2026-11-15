@@ -194,7 +194,9 @@ test('the broadcast notice has the same shape as a list item', function () {
     $alert = new HseAlert('Action ACT-1 assigned to you', 'Fit it.', ['type' => 'action', 'id' => 1], 'https://x.example/actions');
 
     expect($alert->via(new User))->toBe(['database', 'broadcast'])->and($alert->broadcastAs())->toBe('notification')
-        ->and($alert->toBroadcast(new User)->data)->toHaveKeys(['title', 'body', 'target', 'url', 'unread', 'created_at']);
+        ->and($alert->toBroadcast(new User)->data)->toHaveKeys(['title', 'body', 'target', 'url', 'unread', 'created_at'])
+        // Straight to Reverb: queued, it would never leave a server without a queue worker.
+        ->and($alert->toBroadcast(new User)->connection)->toBe('sync');
 });
 
 test('everyone gets their own health record from the app; HSE managers record results and readings', function () {
