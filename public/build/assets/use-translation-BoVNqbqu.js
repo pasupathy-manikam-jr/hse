@@ -1,0 +1,1 @@
+var e=(e,t={})=>e.replace(/:(\w+)/g,(e,n)=>n in t?String(t[n]):e);function t(){return{t:e,locale:`en`,isRtl:!1}}export{t};

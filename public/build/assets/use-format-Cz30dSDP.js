@@ -1,0 +1,1 @@
+function e(e){if(e instanceof Date)return e;let t=/^(\d{4})-(\d{2})-(\d{2})$/.exec(e);return t?new Date(+t[1],t[2]-1,+t[3]):new Date(e)}var t=new Intl.DateTimeFormat(`en-GB`,{dateStyle:`medium`}),n=new Intl.DateTimeFormat(`en-GB`,{dateStyle:`medium`,timeStyle:`short`});function r(){return{date:n=>t.format(e(n)),dateTime:t=>n.format(e(t))}}export{r as t};
